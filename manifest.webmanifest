@@ -2,7 +2,7 @@
   "name": "Otoklix Depot",
   "short_name": "Otoklix Depot",
   "description": "Otoklix Depot: isi form, check-in, WO, inventaris, dashboard, dan Investigasi.",
-  "id": "/otoklix-depot/",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
