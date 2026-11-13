@@ -1,6 +1,6 @@
 /* Otoklix Depot - service worker sederhana. Hanya menyimpan kerangka aplikasi; data selalu dari server. */
 const PREFIX = 'otoklix-depot-';
-const CACHE = PREFIX + '1.1.0';
+const CACHE = PREFIX + '1.2.0';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.indexOf(PREFIX) === 0 && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

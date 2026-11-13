@@ -35,7 +35,7 @@
     run: make({}),
     url: { getLocation: function (cb) { var p = {}; try { new URLSearchParams(location.search).forEach(function (v, k) { p[k] = v; }); } catch (e) {} cb({ parameter: p, hash: location.hash.replace(/^#/, '') }); } }
   } };
-  window.__APP_VER = '1.0.0';
+  window.__APP_VER = '1.2.0';
 })();
 </script>
 
@@ -1007,7 +1007,7 @@ var QR = (function () {
     }).catch(function (e) { vtgBusy = false; box.innerHTML = ''; box.appendChild(h('div', { class: 'err', text: 'Gagal membuka Investigasi: ' + e.message })); });
   }
   /* ================= Kirim ke Investigasi (VTAG) – hanya Otoklix Depot / web teknisi ================= */
-  var vt = { on: false, cfg: null, busy: false, err: '', v: {}, files: {} }, vtBody = null, VT_AUTO = { foto_vin: 1, foto_odo: 1, foto_belakang: 1, foto_depan: 1 };
+  var vt = { on: false, cfg: null, busy: false, err: '', v: {}, files: {}, c: {} }, vtBody = null, VT_AUTO = { foto_vin: 1, foto_odo: 1, foto_belakang: 1, foto_depan: 1 };
   function vtNorm(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
   function vtItems(jenis) {
     if (!vt.cfg) return [];
@@ -1019,22 +1019,39 @@ var QR = (function () {
       return true;
     });
   }
+  function vtCmp() {
+    if (!vt.cfg || !vt.v.campaignId) return null;
+    return (vt.cfg.campaigns || []).filter(function (c) { return c.id === vt.v.campaignId; })[0] || null;
+  }
+  function vtLamp() { var c = vtCmp(); return c ? c.lampiran : vtItems('lampiran'); }
   function vtGuessModel() {
     var t = vtNorm(vals.type), ms = (vt.cfg && vt.cfg.models) || [];
     return ms.filter(function (m) { return t && (vtNorm(m).indexOf(t) === 0 || t.indexOf(vtNorm(m)) === 0); })[0] || '';
   }
   function vtMissing() {
-    var v = vt.v, out = [];
+    var v = vt.v, out = [], cm = vtCmp();
+    if (cm) {
+      if (!String(v.customer || '').trim()) out.push('Customer Name');
+      if (!v.model) out.push('Model');
+      cm.fields.forEach(function (f) { if (f.wajib && !String(vt.c[f.id] || '').trim()) out.push(f.label); });
+      cm.lampiran.forEach(function (i) { if (i.wajib && !vt.files[i.key]) out.push(i.label + ' (file)'); });
+      return out;
+    }
     if (!String(v.customer || '').trim()) out.push('Customer Name');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(v.failureDate || '')) out.push('Failure Date');
     if (!v.caseType) out.push('Jenis kasus');
     if (!v.model) out.push('Model');
     vtItems('field').forEach(function (i) { if (i.wajib && !String(v[i.key] || '').trim()) out.push(i.label); });
-    vtItems('lampiran').forEach(function (i) { if (i.wajib && !VT_AUTO[i.key] && !vt.files[i.key]) out.push(i.label + ' (file)'); });
+    vtLamp().forEach(function (i) { if (i.wajib && !VT_AUTO[i.key] && !vt.files[i.key]) out.push(i.label + ' (file)'); });
     return out;
   }
   function vtInvest() {
-    var v = vt.v, o = { customer: v.customer, failureDate: v.failureDate, caseType: v.caseType, model: v.model };
+    var v = vt.v, cm = vtCmp(), o = { customer: v.customer, failureDate: v.failureDate, caseType: v.caseType, model: v.model };
+    if (cm) {
+      o.caseType = 'Campaign'; o.campaignId = cm.id; o.cdata = {};
+      cm.fields.forEach(function (f) { o.cdata[f.id] = String(vt.c[f.id] == null ? '' : vt.c[f.id]); });
+      return o;
+    }
     ['feedback', 'steps', 'rootcause', 'corrective', 'remarks'].forEach(function (k) { o[k] = vtItems('field').some(function (i) { return i.key === k; }) ? (v[k] || '') : ''; });
     return o;
   }
@@ -1048,6 +1065,45 @@ var QR = (function () {
     function inp(key, type) { var e = h('input', { type: type || 'text', autocomplete: 'off' }); e.value = v[key] || ''; e.oninput = function () { v[key] = e.value; }; return e; }
     function ta(key, rows) { var e = h('textarea', { rows: rows || 3 }); e.value = v[key] || ''; e.oninput = function () { v[key] = e.value; }; return e; }
     function sel(key, opts, ph) { var e = h('select', {}, [h('option', { value: '', text: ph })].concat(opts.map(function (o) { return h('option', { value: o, text: o }); }))); e.value = v[key] || ''; e.onchange = function () { v[key] = e.value; vtDraw(); }; return e; }
+    var cmps = vt.cfg.campaigns || [], cm = vtCmp();
+    if (cmps.length) {
+      var ks = h('select', {}, [h('option', { value: '', text: 'Kasus VTAG / Warranty' })].concat(cmps.map(function (c) { return h('option', { value: c.id, text: 'Campaign: ' + c.nama }); })));
+      ks.value = v.campaignId || '';
+      ks.onchange = function () { v.campaignId = ks.value; v.caseType = ks.value ? 'Campaign' : ''; vt.files = {}; vtDraw(); };
+      vtBody.appendChild(row('Jenis Investigasi', true, ks));
+    }
+    function cinp(f) {
+      var e;
+      if (f.type === 'textarea') e = h('textarea', { rows: 3 });
+      else if (f.type === 'select') e = h('select', {}, [h('option', { value: '', text: '- pilih -' })].concat((f.options || []).map(function (o) { return h('option', { value: o, text: o }); })));
+      else e = h('input', { type: f.type === 'number' ? 'text' : (f.type === 'date' ? 'date' : 'text'), autocomplete: 'off' });
+      if (f.type === 'number') e.setAttribute('inputmode', 'decimal');
+      e.value = vt.c[f.id] || '';
+      e[f.type === 'select' ? 'onchange' : 'oninput'] = function () { vt.c[f.id] = e.value; };
+      return e;
+    }
+    function filePick(i) {
+      var acc = i.kind === 'image' ? 'image/*' : i.kind === 'video' ? 'video/*' : null;
+      var inp = h('input', { type: 'file', accept: acc, style: 'display:none', onchange: function () {
+        var f = inp.files && inp.files[0]; inp.value = ''; if (!f) return;
+        vt.files[i.key] = { file: f, link: '' }; vtDraw();
+      } });
+      var cur = vt.files[i.key];
+      return h('div', {}, [
+        h('button', { type: 'button', class: 'btn sec', text: cur ? 'Ganti file' : '+ Pilih file', onclick: function () { inp.click(); } }), inp,
+        cur ? h('button', { type: 'button', class: 'btn sec', style: 'margin-left:8px', text: 'Hapus', onclick: function () { delete vt.files[i.key]; vtDraw(); } }) : null,
+        cur ? h('div', { class: 'hint', style: 'margin-top:6px;color:var(--ok)', text: '\u2714 ' + cur.file.name + ' (' + fmtSize(cur.file.size) + ')' }) : null
+      ]);
+    }
+    if (cm) {
+      if (cm.deskripsi) vtBody.appendChild(h('div', { class: 'hint', text: cm.deskripsi }));
+      vtBody.appendChild(h('div', { class: 'hint', text: 'Nopol, VIN dan Depot diambil dari Check-in / Isi Form. Untuk Campaign, foto Check-in tidak ikut dikirim: unggah dokumen yang diminta di bawah.' }));
+      vtBody.appendChild(row('Customer Name', true, inp('customer')));
+      vtBody.appendChild(row('Model', true, sel('model', vt.cfg.models || [], '- pilih -')));
+      cm.fields.forEach(function (f) { vtBody.appendChild(row(f.label, f.wajib, cinp(f))); });
+      cm.lampiran.forEach(function (i) { vtBody.appendChild(row(i.label, i.wajib, filePick(i), i.hint)); });
+      return;
+    }
     vtBody.appendChild(h('div', { class: 'hint', text: 'Nopol, VIN, ODO dan Depot diambil dari Check-in / Isi Form. Foto VIN, ODO dan tampak belakang diambil otomatis dari foto Check-in WO.' }));
     vtBody.appendChild(row('Customer Name', true, inp('customer')));
     vtBody.appendChild(row('Failure Date', true, inp('failureDate', 'date')));
@@ -1076,7 +1132,7 @@ var QR = (function () {
     });
   }
   function vtCard() {
-    vt = { on: false, cfg: vt.cfg, busy: false, err: '', v: { failureDate: '' }, files: {} };
+    vt = { on: false, cfg: vt.cfg, busy: false, err: '', v: { failureDate: '' }, files: {}, c: {} };
     var chk = h('input', { type: 'checkbox', id: 'vtChk' });
     var card = h('div', { class: 'card', id: 'vtCard' }, [
       h('label', { style: 'display:flex;gap:10px;align-items:center;font-weight:700;color:var(--navy);cursor:pointer' }, [chk, 'Kirim ke Investigasi (VTAG)']),
@@ -2832,7 +2888,7 @@ var QR = (function () {
       var vm = vt.cfg ? vtMissing() : ['pengaturan Investigasi belum termuat'];
       if (vm.length) { var vc = document.getElementById('vtCard'); if (vc) { vc.classList.add('bad'); vc.scrollIntoView({ behavior: 'smooth', block: 'center' }); } alert('Investigasi belum lengkap: ' + vm.join(', ') + '. Lengkapi atau hilangkan centang "Kirim ke Investigasi".'); return; }
       vtInv = vtInvest();
-      vtFl = vtItems('lampiran').filter(function (i) { return !VT_AUTO[i.key] && vt.files[i.key]; }).map(function (i) { return { key: i.key, label: i.label, it: vt.files[i.key] }; });
+      vtFl = vtLamp().filter(function (i) { return !VT_AUTO[i.key] && vt.files[i.key]; }).map(function (i) { return { key: i.key, label: i.label, it: vt.files[i.key] }; });
     }
     busy = true; document.getElementById('send').disabled = true;
     var todo = [];
