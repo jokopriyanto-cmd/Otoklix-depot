@@ -834,6 +834,7 @@ var QR = (function () {
       btn.disabled = true; btn.textContent = 'Memeriksa...'; err.textContent = '';
       run('loginAkun', u.value, pw.value).then(function (r) {
         if (r && r.ok && (r.role === 'depot' || r.role === 'master')) {
+          if (window.__APP_VER) { try { sessionStorage.setItem('gsm_code', r.token); } catch (e) {} location.href = 'gsm/'; return; }
           getAppUrl2(r.token).then(function (url) { var l = (url || '') + (url && url.indexOf('?') < 0 ? '?' : '&') + 'ext=dash'; try { window.top.location.href = l; } catch (e) { err.innerHTML = ''; err.appendChild(h('a', { href: l, target: '_top', text: 'Buka Dashboard Depot GSM' })); } btn.disabled = false; btn.textContent = 'Masuk'; });
         } else if (r && r.ok) { code = r.token; ss('set', 'wa_code', code); freshLogin = true; boot(); }
         else { btn.textContent = 'Masuk'; sync(); err.textContent = (r && r.msg) || 'Gagal masuk'; }
