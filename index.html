@@ -35,7 +35,7 @@
     run: make({}),
     url: { getLocation: function (cb) { var p = {}; try { new URLSearchParams(location.search).forEach(function (v, k) { p[k] = v; }); } catch (e) {} cb({ parameter: p, hash: location.hash.replace(/^#/, '') }); } }
   } };
-  window.__APP_VER = '1.2.0';
+  window.__APP_VER = '1.3.0';
 })();
 </script>
 
@@ -576,6 +576,7 @@ body.hasSb.sbhide .bar{left:64px}
 <div id="dashSub" class="sbsub" style="display:none"></div>
 <button type="button" class="sbi" data-t="hist"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Riwayat</span></button>
 <div id="histSub" class="sbsub" style="display:none"></div>
+<button type="button" class="sbi" data-t="adm"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h9"/><path d="M8 17h5"/></svg><span>Administrasi</span></button>
 <button type="button" class="sbi" data-t="wo"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6"/><path d="M8 14h8M8 18h5"/></svg><span>WO PDF</span><i class="mbadge" id="mbWo"></i></button>
 <button type="button" class="sbi" data-t="inv"><svg viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Inventaris Part</span></button>
 <div id="invSub" class="sbsub" style="display:none"></div>
@@ -593,6 +594,7 @@ body.hasSb.sbhide .bar{left:64px}
 <div class="wrap wide" id="hist" style="display:none"></div>
 <div class="wrap wide" id="inv" style="display:none"></div>
 <div class="wrap wide" id="wov" style="display:none"></div>
+<div class="wrap wide" id="admv" style="display:none"></div>
 <div id="vtgv" style="display:none"></div>
 <div class="wrap wide" id="qrv" style="display:none"></div>
 <div class="wrap wide" id="extv" style="display:none"></div>
@@ -982,7 +984,7 @@ var QR = (function () {
   function vtgUrl(caseId) {
     var u = cfg.vtagApp.replace(/#.*$/, '');
     if (caseId) u += (u.indexOf('?') < 0 ? '?' : '&') + 'case=' + encodeURIComponent(caseId);
-    return u + '#sso=' + (vtgTok || 'none');
+    return u + '#sso=' + (vtgTok || 'none') + (caseId ? '' : '&go=new');
   }
   function drawVtg(caseId) {
     var box = document.getElementById('vtgv');
@@ -1213,7 +1215,6 @@ var QR = (function () {
     else app.appendChild(h('div', { class: 'card' }, [h('span', { class: 'lbl', text: 'Check-in kendaraan' }), h('div', { class: 'hint', text: 'Isi data kendaraan sebelum mulai kerja: Bengkel, Nama Teknisi, Depot, Type, foto tampak belakang, kilometer, VIN, No. Plate, Hull number, No. VIN, Kilometer, Battery HV, dan Issue. Nanti di Isi Form tinggal pilih check-in kamu, datanya terisi otomatis.' })]));
     FL().forEach(function (f) { var c = fieldCard(f); cards[f.key] = c; app.appendChild(c); });
     if (mode === 'ci' && cfg.cek) app.appendChild(cekCard());
-    if (mode === 'form' && cfg.vtag) app.appendChild(vtCard());
     var bar = h('div', { class: 'bar' }, [h('div', { class: 'in' }, [
       h('div', { class: 'note', id: 'note', text: '' }),
       h('button', { class: 'btn', id: 'send', text: mode === 'ci' ? 'Check-in' : 'Kirim', onclick: submit })
@@ -3313,20 +3314,22 @@ var QR = (function () {
     if (inForm) { mode = t; if (renderedMode !== t && cfg) render(); }
     if (t === 'form' && cfg && Date.now() - partsAt > 120000) loadParts();
     if (t === 'form' && cfg && Date.now() - stokAt > 45000) loadStok(true);
-    document.getElementById('navTitle').textContent = { form: 'Isi Form', ci: 'Check-in WO', dash: 'Dashboard', rev: 'Revenue', set: 'Pengaturan', hist: 'Riwayat', inv: 'Inventaris Part', wo: 'WO PDF', qr: 'QR Depot', vtg: 'Investigasi', ext: (isTek() && extForm) ? 'Isi Form Request' : 'Request Eksternal' }[t] || '';
+    document.getElementById('navTitle').textContent = { form: 'Isi Form', ci: 'Check-in WO', dash: 'Dashboard', rev: 'Revenue', set: 'Pengaturan', hist: 'Riwayat', inv: 'Inventaris Part', adm: 'Administrasi', wo: 'WO PDF', qr: 'QR Depot', vtg: 'Investigasi', ext: (isTek() && extForm) ? 'Isi Form Request' : 'Request Eksternal' }[t] || '';
     document.body.classList.remove('home', 'sbopen');
     document.body.classList.toggle('hasSb', !locked);
     document.getElementById('hsub').style.display = inForm ? '' : 'none';
     document.getElementById('hsub').innerHTML = t === 'ci' ? 'Catat kendaraan yang masuk depot. Tanda <b style="color:var(--accent)">*</b> wajib diisi.' : 'Isi data pekerjaan. Tanda <b style="color:var(--accent)">*</b> wajib diisi.';
     navEl.style.display = locked ? 'none' : '';
     app.style.display = inForm ? '' : 'none';
-    fbarEl.style.display = (inForm || t === 'qr' || t === 'ext' || t === 'inv' || t === 'wo' || t === 'rev' || t === 'set' || t === 'vtg') ? 'none' : '';
+    fbarEl.style.display = (inForm || t === 'qr' || t === 'ext' || t === 'inv' || t === 'wo' || t === 'rev' || t === 'set' || t === 'vtg' || t === 'adm') ? 'none' : '';
     document.getElementById('revv').style.display = t === 'rev' ? '' : 'none';
     document.getElementById('setv').style.display = t === 'set' ? '' : 'none';
     dashEl.style.display = t === 'dash' ? '' : 'none';
     histEl.style.display = t === 'hist' ? '' : 'none';
     document.getElementById('inv').style.display = t === 'inv' ? '' : 'none';
     document.getElementById('wov').style.display = t === 'wo' ? '' : 'none';
+    document.getElementById('admv').style.display = t === 'adm' ? '' : 'none';
+    if (t === 'adm') { ensureAdm(false); drawAdm(); }
     document.getElementById('vtgv').style.display = t === 'vtg' ? '' : 'none';
     if (t === 'vtg') drawVtg(window.__vtgCase || '');
     document.getElementById('qrv').style.display = t === 'qr' ? '' : 'none';
@@ -3344,7 +3347,7 @@ var QR = (function () {
     if (t === 'set') loadSet();
     loadCi(false);
     Array.prototype.forEach.call(navEl.querySelectorAll('button[data-t]'), function (b) { b.classList.toggle('on', b.getAttribute('data-t') === ((isTek() && t === 'ext' && extForm) ? 'xf' : t)); });
-    if (!inForm && t !== 'qr' && t !== 'inv' && t !== 'wo' && t !== 'rev' && t !== 'set' && t !== 'vtg') { if (!dash && !dashBusy) loadDash(); else drawAll(); }
+    if (!inForm && t !== 'qr' && t !== 'inv' && t !== 'wo' && t !== 'rev' && t !== 'set' && t !== 'vtg' && t !== 'adm') { if (!dash && !dashBusy) loadDash(); else drawAll(); }
     window.scrollTo(0, 0);
   }
   function isMobile() { try { return window.matchMedia('(max-width: 900px)').matches; } catch (e) { return false; } }
@@ -3365,7 +3368,7 @@ var QR = (function () {
   }
 
   function drawAll() {
-    if (tab === 'form' || tab === 'ci' || tab === 'qr' || tab === 'wo' || tab === 'rev' || tab === 'set' || tab === 'vtg') return;
+    if (tab === 'form' || tab === 'ci' || tab === 'qr' || tab === 'wo' || tab === 'rev' || tab === 'set' || tab === 'vtg' || tab === 'adm') return;
     drawFbar();
     if (tab === 'dash' || tab === 'hist') buildDhSub();
     if (tab === 'dash') drawDash(); else if (tab === 'inv') drawInv(); else drawHist();
@@ -3786,7 +3789,7 @@ var QR = (function () {
   document.getElementById('goBtn').addEventListener('click', function () { showTab(locked ? 'form' : 'rev'); });
 
   /* ================= revenue (gaya saham) ================= */
-  var revData = null, revErr = '', revBusy = false, revAt = 0, revScope = 'all', revPer = 'H', revSeg = 'all';
+  var revData = null, revErr = '', revBusy = false, revAt = 0, revScope = 'all', revPer = 'H', revSeg = 'all', revFrom = '', revTo = '', revReal = null, revRealErr = '', revRealBusy = false, revRealAt = 0;
   var revEl = document.getElementById('revv');
   var RV_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'], RV_DAY = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
   var RV_NF = null;
@@ -3866,6 +3869,11 @@ var QR = (function () {
     else if (per === 'B') {
       var f = rvKey(p[0], p[1], 1), pm = p[1] === 1 ? [p[0] - 1, 12] : [p[0], p[1] - 1], pf = rvKey(pm[0], pm[1], 1);
       cur = rvRange(f, ref); prev = rvRange(pf, rvAdd(pf, cur.length - 1)); chart = cur; cum = true; vs = 'vs bulan lalu (periode sama)'; name = 'Bulan berjalan (MTD)';
+    } else if (per === 'C') {
+      var ck = function (x) { return parseInt(String(x || '').replace(/-/g, ''), 10) || 0; }, a0 = ck(revFrom) || ref, b0 = ck(revTo) || ref;
+      if (a0 > b0) { var tt = a0; a0 = b0; b0 = tt; }
+      cur = rvRange(a0, b0); if (cur.length > 400) cur = cur.slice(cur.length - 400);
+      prev = rvRange(rvAdd(cur[0], -cur.length), rvAdd(cur[0], -1)); chart = cur; vs = 'vs periode sebelumnya (' + cur.length + ' hari)'; name = 'Custom';
     } else {
       var f2 = rvKey(p[0], 1, 1), pf2 = rvKey(p[0] - 1, 1, 1);
       cur = rvRange(f2, ref); prev = rvRange(pf2, rvAdd(pf2, cur.length - 1)); chart = cur; cum = true; vs = 'vs tahun lalu (periode sama)'; name = 'Tahun berjalan (YTD)';
@@ -3873,7 +3881,7 @@ var QR = (function () {
     var sc = rvSum(ix, scope, cur), sp = rvSum(ix, scope, prev);
     var pts = [], run = 0;
     chart.forEach(function (k) { var x = rvVal(ix, scope, k); run += x.rev; pts.push({ k: k, v: cum ? run : x.rev, d: x.rev, ue: x.ue, has: x.has }); });
-    return { cur: sc, prev: sp, pts: pts, cum: cum, vs: vs, name: name, hasPrev: sp.days > 0 || sp.rev > 0 };
+    return { cur: sc, prev: sp, keys: cur, pts: pts, cum: cum, vs: vs, name: name, hasPrev: sp.days > 0 || sp.rev > 0 };
   }
   function rvPct(a, b) { if (!b) return null; return (a - b) / Math.abs(b) * 100; }
   function rvPctTxt(x) { return (x >= 0 ? '+' : '') + x.toFixed(1).replace('.', ',') + '%'; }
@@ -3946,6 +3954,49 @@ var QR = (function () {
     run('getRevenue', code, !!force).then(function (d) { revData = d; revAt = Date.now(); revBusy = false; if (tab === 'rev') drawRev(); })
       .catch(function (e) { revBusy = false; revErr = e.message; if (tab === 'rev') drawRev(); });
     if (tab === 'rev') drawRev();
+    ensureRevReal(force);
+  }
+  function ensureRevReal(force) {
+    if (revRealBusy) return;
+    if (!force && revReal && Date.now() - revRealAt < 120000) return;
+    revRealBusy = true; revRealErr = '';
+    run('getRevReal', code, !!force).then(function (d) { revReal = d; revRealAt = Date.now(); revRealBusy = false; if (tab === 'rev') drawRev(); })
+      .catch(function (e) { revRealBusy = false; revRealErr = e.message; if (tab === 'rev') drawRev(); });
+  }
+  function rvRealRows(scope, keys) {
+    var set = {}, out = {};
+    keys.forEach(function (k) { set[k] = 1; });
+    ((revReal && revReal.rows) || []).forEach(function (r) {
+      if (scope !== 'all' && r.b !== scope) return;
+      var k = parseInt(String(r.d).replace(/-/g, ''), 10);
+      if (!set[k]) return;
+      var o = out[k] || (out[k] = { ci: 0, form: 0, done: 0, pend: 0, pp: 0 });
+      o.ci += r.ci; o.form += r.form; o.done += r.done; o.pend += r.pend; o.pp += r.pp;
+    });
+    return out;
+  }
+  function rvRealPanel(ix, per) {
+    var panel = h('div', { class: 'panel' }, [h('h3', { text: 'Unit real · check-in & Isi Form' })]);
+    if (revRealErr) { panel.appendChild(h('div', { class: 'err', text: revRealErr })); return panel; }
+    if (!revReal) { panel.appendChild(h('div', { class: 'sub', text: 'Memuat data unit real...' })); return panel; }
+    var keys = per.keys, by = rvRealRows(revScope, keys), t = { ci: 0, form: 0, done: 0, pend: 0, pp: 0 };
+    keys.forEach(function (k) { var o = by[k]; if (!o) return; Object.keys(t).forEach(function (f) { t[f] += o[f]; }); });
+    var tgt = per.cur.ue;
+    var st = [['Check-in', rvNum(t.ci)], ['Unit masuk Isi Form', rvNum(t.form)], ['Done', rvNum(t.done)], ['Pending Part', rvNum(t.pp)], ['Pending', rvNum(t.pend)], ['UE di sheet revenue', rvNum(tgt)]];
+    panel.appendChild(h('div', { class: 'rv-stats' }, st.map(function (x) { return h('div', {}, [h('small', { text: x[0] }), h('b', { text: x[1] })]); })));
+    panel.appendChild(h('div', { class: 'rv-dim', style: 'font-size:12px;margin:6px 0 10px', text: 'Hanya jumlah unit/pekerjaan, tanpa rupiah. Selisih real vs sheet: ' + (t.form - tgt >= 0 ? '+' : '') + rvNum(t.form - tgt) + ' unit.' }));
+    var days = keys.slice().reverse().filter(function (k) { return by[k] || (rvVal(ix, revScope, k).has); });
+    if (!days.length) { panel.appendChild(h('div', { class: 'sub', text: 'Belum ada data harian pada periode ini.' })); return panel; }
+    var tb = h('table', { class: 'rv-tbl', style: 'width:100%;border-collapse:collapse;font-size:13px' });
+    tb.appendChild(h('thead', {}, [h('tr', {}, ['Tanggal', 'Check-in', 'Isi Form', 'Done', 'P. Part', 'Pending', 'UE sheet'].map(function (x, i) { return h('th', { style: 'text-align:' + (i ? 'right' : 'left') + ';padding:6px 8px;border-bottom:1px solid var(--line);color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--card)', text: x }); }))]));
+    var body = h('tbody', {});
+    days.slice(0, 120).forEach(function (k) {
+      var o = by[k] || { ci: 0, form: 0, done: 0, pend: 0, pp: 0 }, sv2 = rvVal(ix, revScope, k);
+      body.appendChild(h('tr', {}, [rvLabel(k, true), o.ci, o.form, o.done, o.pp, o.pend, sv2.ue].map(function (x, i) { return h('td', { style: 'text-align:' + (i ? 'right' : 'left') + ';padding:6px 8px;border-bottom:1px solid var(--line)' + (i === 2 ? ';font-weight:700' : ''), text: String(x) }); })));
+    });
+    tb.appendChild(body);
+    panel.appendChild(h('div', { style: 'max-height:420px;overflow:auto' }, [tb]));
+    return panel;
   }
   function drawRev() {
     revEl.innerHTML = '';
@@ -3978,8 +4029,15 @@ var QR = (function () {
     card.appendChild(chg);
     card.appendChild(h('div', { class: 'rv-dim rv-ref', text: (revPer === 'H' ? rvLabel(ref, true) : rvLabel(per.pts[0].k) + ' – ' + rvLabel(ref, true)) + (noData ? ' · belum ada angka yang diisi di sheet' : '') }));
     card.appendChild(rvChart(per, up, neutral));
-    var periods = [['H', 'Harian'], ['M', 'Mingguan'], ['B', 'Bulanan'], ['Y', 'YTD']];
-    card.appendChild(h('div', { class: 'rv-per' }, [h('div', { class: 'seg' }, periods.map(function (p) { return h('button', { type: 'button', class: revPer === p[0] ? 'on' : '', text: p[1], onclick: function () { revPer = p[0]; drawRev(); } }); }))]));
+    var periods = [['H', 'Harian'], ['M', 'Mingguan'], ['B', 'Bulanan'], ['Y', 'YTD'], ['C', 'Custom']];
+    card.appendChild(h('div', { class: 'rv-per' }, [h('div', { class: 'seg' }, periods.map(function (p) { return h('button', { type: 'button', class: revPer === p[0] ? 'on' : '', text: p[1], onclick: function () { revPer = p[0]; if (p[0] === 'C' && !revFrom) { var iso = function (k) { var q = rvParts(k); return q[0] + '-' + ('0' + q[1]).slice(-2) + '-' + ('0' + q[2]).slice(-2); }; revFrom = iso(rvAdd(ref, -6)); revTo = iso(ref); } drawRev(); } }); }))]));
+    if (revPer === 'C') {
+      var mkD = function (lbl, val, set) { return h('label', { style: 'display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);font-weight:700' }, [h('span', { text: lbl }), h('input', { type: 'date', value: val, style: 'padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)', onchange: function (e) { set(e.target.value); drawRev(); } })]); };
+      card.appendChild(h('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin-top:10px' }, [
+        mkD('Dari', revFrom || String(rvParts(per.keys[0])[0]) + '-' + ('0' + rvParts(per.keys[0])[1]).slice(-2) + '-' + ('0' + rvParts(per.keys[0])[2]).slice(-2), function (v) { revFrom = v; }),
+        mkD('Sampai', revTo || String(rvParts(ref)[0]) + '-' + ('0' + rvParts(ref)[1]).slice(-2) + '-' + ('0' + rvParts(ref)[2]).slice(-2), function (v) { revTo = v; })
+      ]));
+    }
     revEl.appendChild(card);
     /* statistik ala saham */
     var avg = c.days ? c.rev / c.days : 0, rpu = c.ue ? c.rev / c.ue : 0;
@@ -3990,6 +4048,7 @@ var QR = (function () {
       ['Rata-rata / hari', rvRp(avg) + (c.days ? ' (' + c.days + ' hari)' : '')]
     ];
     revEl.appendChild(h('div', { class: 'panel' }, [h('h3', { text: 'Ringkasan' }), h('div', { class: 'rv-stats' }, st.map(function (s) { return h('div', {}, [h('small', { text: s[0] }), h('b', { text: s[1] })]); }))]));
+    revEl.appendChild(rvRealPanel(ix, per));
     /* per bengkel (seperti watchlist) */
     var benk = Object.keys(ix.map).sort();
     if (benk.length) {
@@ -4313,6 +4372,8 @@ var QR = (function () {
     Object.keys(deps).sort().forEach(function (d) { mk(d, invView === 'kirim' && invF.depot === d, function () { invView = 'kirim'; invF.depot = d; showTab('inv'); }); });
     mk('Stok per bengkel', invView === 'stok', function () { invView = 'stok'; showTab('inv'); });
     mk('Part order terpasang', invView === 'pasang', function () { invView = 'pasang'; showTab('inv'); });
+    mk('Daftar Part (per type)', invView === 'parts', function () { invView = 'parts'; showTab('inv'); });
+    mk('Incoming Part (Order)', invView === 'order', function () { invView = 'order'; showTab('inv'); });
     mk('Part Ready (Balance KS)', invView === 'ready', function () { invView = 'ready'; showTab('inv'); });
   }
   var pasData = null, pasBusy = false, pasErr = '', pasF = { depot: '', state: '', q: '' };
@@ -4325,7 +4386,7 @@ var QR = (function () {
   function drawPasang() {
     ensurePasang(false);
     if (!pasData) { invEl.appendChild(pasErr ? statusLine('Gagal memuat: ' + pasErr, true) : statusLine('Memuat part order...')); return; }
-    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
       return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
     }));
     invEl.appendChild(vsw);
@@ -4354,39 +4415,150 @@ var QR = (function () {
     invEl.appendChild(h('div', { class: 'tw', style: 'overflow:auto' }, [tb]));
   }
   var tkData = null, tkErr = '', tkBusy = false, tkQ = '', tkType = '', tkOut = '';
+  /* ================= Administrasi (SPV): WO, WC, approve L1-L3, invoice Servia, metode bayar ================= */
+  var admData = null, admErr = '', admBusy = false, admF = { b: '', q: '', from: '', to: '', k: '' };
+  var ADM_COLS = [['tgl', 'Tanggal'], ['tab', 'Bengkel'], ['plate', 'Nopol'], ['teknisi', 'Teknisi'], ['prog', 'Progres'], ['wo', 'No WO'], ['tglWo', 'Tgl WO'], ['wc', 'No WC'], ['tglWc', 'Tgl WC'], ['l1', 'Approve L1'], ['l2', 'Approve L2'], ['l3', 'Approve L3'], ['inv', 'No Invoice Servia'], ['tglInv', 'Tgl Invoice'], ['metode', 'Metode Bayar']];
+  function ensureAdm(force) {
+    if (admBusy || (admData && !force)) return;
+    admBusy = true; admErr = '';
+    run('getAdm', code).then(function (d) { admData = d; admBusy = false; if (tab === 'adm') drawAdm(); })
+      .catch(function (e) { admBusy = false; admErr = e.message || 'gagal'; if (tab === 'adm') drawAdm(); });
+    if (tab === 'adm') drawAdm();
+  }
+  function admMetode(r) { return r.metode || r.auto || ''; }
+  function admRows() {
+    var q = admF.q.trim().toUpperCase();
+    return ((admData && admData.rows) || []).filter(function (r) {
+      if (admF.b && r.tab !== admF.b) return false;
+      if (admF.from && r.tgl < admF.from) return false;
+      if (admF.to && r.tgl > admF.to) return false;
+      if (admF.k === 'nowo' && r.wo) return false;
+      if (admF.k === 'nowc' && r.wc) return false;
+      if (admF.k === 'noinv' && r.inv) return false;
+      if (admF.k === 'lengkap' && !(r.wo && r.wc && r.l1 && r.l2 && r.l3 && r.inv)) return false;
+      if (q && (r.plate + ' ' + r.wo + ' ' + r.wc + ' ' + r.inv + ' ' + r.teknisi).toUpperCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+  var ADM_DATE = { tgl: 1, tglWo: 1, tglWc: 1, l1: 1, l2: 1, l3: 1, tglInv: 1 };
+  function admCell(r, k) { var v = k === 'metode' ? admMetode(r) : r[k]; if (ADM_DATE[k]) v = showDateDash(v); else if (k === 'tab') v = String(v || '').replace(/^Otoklix\s+/, ''); return v == null ? '' : String(v); }
+  function showDateDash(s) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : (s || ''); }
+  function drawAdm() {
+    var el = document.getElementById('admv'); el.innerHTML = '';
+    el.appendChild(h('div', { class: 'card' }, [h('h2', { text: 'Administrasi' }), h('div', { class: 'sub', text: 'Data setelah input DMS & Servia: No WO, No WC, tanggal approve L1/L2/L3, invoice Servia dan metode pembayaran. Ketuk baris untuk mengisi / mengubah.' })]));
+    if (admErr) { el.appendChild(statusLine('Gagal memuat: ' + admErr, true)); el.appendChild(h('button', { type: 'button', class: 'btn sec', text: 'Coba lagi', onclick: function () { ensureAdm(true); } })); return; }
+    if (!admData) { el.appendChild(statusLine('Memuat data administrasi...')); return; }
+    var inp = h('input', { type: 'text', placeholder: 'Cari nopol / No WO / No WC / No invoice...', value: admF.q, oninput: function () { admF.q = inp.value; var p = inp.selectionStart; drawAdm(); var n = el.querySelector('input[type=text]'); if (n) { n.focus(); try { n.setSelectionRange(p, p); } catch (e) {} } } });
+    var bs = h('select', { onchange: function () { admF.b = bs.value; drawAdm(); } }, [['', 'Semua bengkel'], ['Otoklix Cinere', 'Otoklix Cinere'], ['Otoklix Joglo', 'Otoklix Joglo']].map(function (x) { return h('option', { value: x[0], text: x[1] }); })); bs.value = admF.b;
+    var ks = h('select', { onchange: function () { admF.k = ks.value; drawAdm(); } }, [['', 'Semua status'], ['nowo', 'Belum ada No WO'], ['nowc', 'Belum ada No WC'], ['noinv', 'Belum ada invoice'], ['lengkap', 'Sudah lengkap']].map(function (x) { return h('option', { value: x[0], text: x[1] }); })); ks.value = admF.k;
+    var df = h('input', { type: 'date', value: admF.from, title: 'Dari tanggal', onchange: function () { admF.from = df.value; drawAdm(); } });
+    var dt = h('input', { type: 'date', value: admF.to, title: 'Sampai tanggal', onchange: function () { admF.to = dt.value; drawAdm(); } });
+    var list = admRows();
+    el.appendChild(h('div', { class: 'tb', style: 'margin-top:10px' }, [inp, bs, ks, df, dt, h('span', { class: 'upd', text: list.length + ' baris · ' + (admData.at || '') }),
+      h('button', { type: 'button', class: 'btn sec', style: 'padding:6px 12px;font-size:13px', text: admBusy ? 'Memuat...' : 'Muat ulang', disabled: admBusy, onclick: function () { ensureAdm(true); } }),
+      h('button', { type: 'button', class: 'btn sec', style: 'padding:6px 12px;font-size:13px', text: 'Unduh Excel', onclick: function () {
+        XL.save(XL.build([{ name: 'Administrasi', cols: ADM_COLS.map(function (c) { return { h: c[1], w: c[0] === 'plate' || c[0] === 'inv' ? 20 : 14 }; }), rows: list.map(function (r) { return ADM_COLS.map(function (c) { return admCell(r, c[0]); }); }) }]), 'administrasi-' + iso(new Date()) + '.xlsx');
+      } })]));
+    if (!list.length) { el.appendChild(statusLine('Tidak ada data yang cocok.')); return; }
+    var n = Math.min(list.length, 300);
+    var tb = h('table', { class: 'tbl', style: 'min-width:1250px' }, [h('thead', {}, [h('tr', {}, ADM_COLS.map(function (c) { return h('th', { text: c[1] }); }))]),
+      h('tbody', {}, list.slice(0, n).map(function (r) {
+        return h('tr', { style: 'cursor:pointer', onclick: function () { openAdm(r); } }, ADM_COLS.map(function (c) { return h('td', { text: admCell(r, c[0]) }); }));
+      }))]);
+    el.appendChild(h('div', { class: 'tw' }, [tb]));
+    if (list.length > n) el.appendChild(h('div', { class: 'sub', style: 'margin-top:8px', text: 'Menampilkan ' + n + ' dari ' + list.length + ' baris. Persempit dengan filter, atau unduh Excel untuk semuanya.' }));
+  }
+  function openAdm(r) {
+    var pn = h('div', { class: 'pn' }), close = function () { dlgEl.classList.remove('on'); }, f = {}, msg = h('div', { class: 'sub', style: 'min-height:18px;margin-top:8px' });
+    pn.appendChild(h('div', { style: 'display:flex;justify-content:space-between;align-items:flex-start;gap:8px' }, [
+      h('div', {}, [h('h2', { text: r.plate }), h('div', { class: 'upd', text: r.tab + ' · ' + showDateDash(r.tgl) + ' · ' + (r.teknisi || '-') + ' · ' + (r.prog || '-') })]),
+      h('button', { type: 'button', class: 'btn sec', text: 'Tutup', onclick: close })]));
+    function fld(k, label, type, extra) {
+      var inp = type === 'select'
+        ? h('select', {}, [h('option', { value: '', text: '(kosong)' })].concat(admData.metode.map(function (m) { return h('option', { value: m, text: m }); })))
+        : h('input', { type: type || 'text', maxlength: type === 'date' ? null : '80', autocomplete: 'off' });
+      inp.value = k === 'metode' ? admMetode(r) : (r[k] || '');
+      f[k] = inp;
+      return h('label', { style: 'display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:700;color:var(--muted)' }, [h('span', { text: label }), inp, extra ? h('small', { style: 'font-weight:400', text: extra }) : null]);
+    }
+    var grid = function (items) { return h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px' }, items); };
+    pn.appendChild(h('h4', { text: 'WO & WC' }));
+    pn.appendChild(grid([fld('wo', 'No WO'), fld('tglWo', 'Tanggal input WO', 'date', 'Kosong = otomatis hari ini saat No WO diisi'), fld('wc', 'No WC'), fld('tglWc', 'Tanggal WC', 'date')]));
+    pn.appendChild(h('h4', { text: 'Approve' }));
+    pn.appendChild(grid([fld('l1', 'Tanggal approve L1', 'date'), fld('l2', 'Tanggal approve L2', 'date'), fld('l3', 'Tanggal approve L3', 'date')]));
+    pn.appendChild(h('h4', { text: 'Invoice & pembayaran' }));
+    pn.appendChild(grid([fld('inv', 'No Invoice Servia'), fld('tglInv', 'Tanggal invoice Servia', 'date'), fld('metode', 'Metode pembayaran', 'select', r.auto ? 'Otomatis dari status part: ' + r.auto + ' (bisa diubah)' : 'Warranty = TOP VAI, Non Warranty = TOP Xanh SM')]));
+    var save = h('button', { type: 'button', class: 'btn', style: 'margin-top:14px', text: 'Simpan', onclick: function () {
+      var data = {}; Object.keys(f).forEach(function (k) { data[k] = f[k].value; });
+      if (data.metode === r.auto && !r.metode) data.metode = r.auto;
+      save.disabled = true; save.textContent = 'Menyimpan...'; msg.textContent = '';
+      run('saveAdm', code, r.tab, r.row, data).then(function (res) {
+        if (res && res.ok) {
+          Object.keys(data).forEach(function (k) { r[k] = data[k]; });
+          if (data.wo && !data.tglWo) r.tglWo = iso(new Date()); if (data.wc && !data.tglWc) r.tglWc = iso(new Date()); if (data.inv && !data.tglInv) r.tglInv = iso(new Date());
+          close(); drawAdm(); toast('Administrasi ' + r.plate + ' tersimpan');
+        } else { save.disabled = false; save.textContent = 'Simpan'; msg.className = 'err'; msg.textContent = (res && res.errors && res.errors.join(', ')) || 'Gagal menyimpan'; }
+      }).catch(function (e) { save.disabled = false; save.textContent = 'Simpan'; msg.className = 'err'; msg.textContent = e.message || 'Gagal menyimpan'; });
+    } });
+    pn.appendChild(save); pn.appendChild(msg);
+    dlgEl.innerHTML = ''; dlgEl.appendChild(pn); dlgEl.classList.add('on'); dlgEl.scrollTop = 0;
+  }
+  var tkMode = 'ready';
+  var TK_MODES = [['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']];
   function drawTekInv(embed) {
+    var mode = embed ? invView : tkMode;
     var redraw = function () { if (embed) drawInv(); else drawTekInv(); };
     if (!embed) invEl.innerHTML = '';
+    var mname = ''; TK_MODES.forEach(function (x) { if (x[0] === mode) mname = x[1]; });
     var reload = h('button', { type: 'button', class: 'btn', style: 'margin-top:8px', disabled: tkBusy, text: tkBusy ? 'Memuat...' : 'Muat ulang data', onclick: function () { ensureTk(true); redraw(); } });
-    invEl.appendChild(h('div', { class: 'card' }, [h('h2', { text: 'Inventaris Part \u00b7 Part Ready (Balance KS)' }), reload]));
+    invEl.appendChild(h('div', { class: 'card' }, [h('h2', { text: 'Inventaris Part · ' + mname }), reload]));
+    if (!embed) invEl.appendChild(h('div', { class: 'seg', style: 'margin:10px 0' }, TK_MODES.map(function (v) {
+      return h('button', { type: 'button', class: tkMode === v[0] ? 'on' : '', text: v[1], onclick: function () { tkMode = v[0]; tkQ = ''; tkType = ''; tkOut = ''; drawTekInv(); } });
+    })));
     if (tkErr) { invEl.appendChild(statusLine('Gagal memuat: ' + tkErr, true)); return; }
     if (!tkData) { invEl.appendChild(statusLine('Memuat data inventaris...')); ensureTk(false); return; }
-    (tkData.warn || []).forEach(function (w) { invEl.appendChild(statusLine('\u26a0 ' + w, true)); });
-    var inp = h('input', { type: 'text', placeholder: 'Cari nama part atau kode part...', value: tkQ, style: 'flex:1;min-width:160px', oninput: function () { tkQ = inp.value; var p = inp.selectionStart; redraw(); var n = invEl.querySelector('input[type=text]'); if (n) { n.focus(); try { n.setSelectionRange(p, p); } catch (e) {} } } });
-    var ts = h('select', { onchange: function () { tkType = ts.value; redraw(); } }, [['', 'Semua type'], ['VFe34', 'VFe34'], ['VF5', 'VF5']].map(function (x) { return h('option', { value: x[0], text: x[1] }); })); ts.value = tkType;
-    var os = h('select', { onchange: function () { tkOut = os.value; redraw(); } }, [['', 'Semua outlet'], ['Otoklix Cinere', 'Otoklix Cinere'], ['Otoklix Joglo', 'Otoklix Joglo']].map(function (x) { return h('option', { value: x[0], text: x[1] }); })); os.value = tkOut;
-    invEl.appendChild(h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0' }, [inp, ts, os]));
+    (tkData.warn || []).forEach(function (w) { invEl.appendChild(statusLine('⚠ ' + w, true)); });
+    var inp = h('input', { type: 'text', placeholder: mode === 'order' ? 'Cari part, kode, No PO...' : 'Cari nama part atau kode part...', value: tkQ, style: 'flex:1;min-width:160px', oninput: function () { tkQ = inp.value; var p = inp.selectionStart; redraw(); var n = invEl.querySelector('input[type=text]'); if (n) { n.focus(); try { n.setSelectionRange(p, p); } catch (e) {} } } });
+    var bar = h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0' }, [inp]);
+    if (mode !== 'order') {
+      var ts = h('select', { onchange: function () { tkType = ts.value; redraw(); } }, [['', 'Semua type'], ['VFe34', 'VFe34'], ['VF5', 'VF5']].map(function (x) { return h('option', { value: x[0], text: x[1] }); })); ts.value = tkType; bar.appendChild(ts);
+    }
+    if (mode !== 'parts') {
+      var os = h('select', { onchange: function () { tkOut = os.value; redraw(); } }, [['', 'Semua outlet'], ['Otoklix Cinere', 'Otoklix Cinere'], ['Otoklix Joglo', 'Otoklix Joglo']].map(function (x) { return h('option', { value: x[0], text: x[1] }); })); os.value = tkOut; bar.appendChild(os);
+    }
+    invEl.appendChild(bar);
     var ws = tkQ.trim().toUpperCase().split(/\s+/).filter(Boolean);
-    var list = (tkData.ready || []).filter(function (x) {
-      if (tkOut && x.o !== tkOut) return false;
-      if (tkType) { var t = x.t || ''; if (t && !(tkType === 'VFe34' ? /e34/i.test(t) : /vf5/i.test(t))) return false; }
+    var typeOk = function (x) { if (!tkType) return true; var t = x.t || ''; return !t || (tkType === 'VFe34' ? /e34/i.test(t) : /vf5/i.test(t)); };
+    var src = mode === 'parts' ? (tkData.parts || []) : mode === 'order' ? (tkData.orders || []) : (tkData.ready || []);
+    var list = src.filter(function (x) {
+      if (mode !== 'parts' && tkOut && x.o !== tkOut) return false;
+      if (mode === 'parts') { if (tkType && !(x.m & (tkType === 'VFe34' ? 1 : 2))) return false; }
+      else if (mode === 'ready' && !typeOk(x)) return false;
       if (!ws.length) return true;
-      var s2 = (x.k + ' ' + x.n + ' ' + (x.o || '')).toUpperCase();
+      var s2 = (x.k + ' ' + x.n + ' ' + (x.po || '') + ' ' + (x.o || '')).toUpperCase();
       return ws.every(function (w) { return s2.indexOf(w) >= 0; });
     });
-    invEl.appendChild(h('div', { class: 'sub', style: 'margin-bottom:8px', text: list.length + ' baris \u00b7 data per ' + (tkData.at || '-') }));
+    var cols, rowOf, xname;
+    if (mode === 'parts') { cols = ['Kode Part', 'Nama Part', 'Type']; rowOf = function (x) { return [x.k, x.n, x.t || '']; }; xname = 'daftar-part'; }
+    else if (mode === 'order') { cols = ['Outlet', 'No PO', 'Tgl PO', 'Bulan', 'Kode Part', 'Nama Part', 'Qty Order', 'Tgl Diterima', 'Status']; rowOf = function (x) { return [x.o, x.po, x.dt, x.bl, x.k, x.n, x.q, x.rc || '', x.st]; }; xname = 'incoming-part'; }
+    else { cols = ['Outlet', 'Kode Part', 'Nama Part', 'Type', 'Balance']; rowOf = function (x) { return [x.o, x.k, x.n, x.t || '', x.b]; }; xname = 'part-ready'; }
+    var numCol = { 'Qty Order': 1, 'Balance': 1 };
+    invEl.appendChild(h('div', { style: 'display:flex;align-items:center;gap:10px;margin-bottom:8px' }, [h('div', { class: 'sub', style: 'flex:1', text: list.length + ' baris · data per ' + (tkData.at || '-') }),
+      h('button', { type: 'button', class: 'btn sec', style: 'padding:6px 12px;font-size:13px', text: 'Unduh Excel', onclick: function () {
+        XL.save(XL.build([{ name: xname, cols: cols.map(function (c) { return { h: c, w: c === 'Nama Part' ? 40 : 16 }; }), rows: list.map(function (x) { return rowOf(x).map(function (v) { return typeof v === 'number' ? v : (v == null ? '' : String(v)); }); }) }]), xname + '-' + iso(new Date()) + '.xlsx');
+      } })]));
     if (!list.length) { invEl.appendChild(statusLine('Tidak ada data yang cocok.')); return; }
     var n = Math.min(list.length, 300);
-    var rows = list.slice(0, n).map(function (x) { return h('tr', {}, [h('td', { text: x.o || '' }), h('td', { text: x.k || '' }), h('td', { text: x.n || '' }), h('td', { text: x.t || '' }), h('td', { style: 'text-align:right;font-weight:700', text: x.b == null ? '' : String(x.b) })]); });
-    invEl.appendChild(h('div', { class: 'tw' }, [h('table', { class: 'tbl' }, [h('thead', {}, [h('tr', {}, ['Outlet', 'Kode Part', 'Nama Part', 'Type', 'Balance'].map(function (c) { return h('th', { text: c, style: c === 'Balance' ? 'text-align:right' : '' }); }))]), h('tbody', {}, rows)])]));
-    if (list.length > n) invEl.appendChild(h('div', { class: 'sub', style: 'margin-top:8px', text: 'Menampilkan ' + n + ' dari ' + list.length + ' baris. Persempit dengan pencarian.' }));
+    var rows = list.slice(0, n).map(function (x) { return h('tr', {}, rowOf(x).map(function (v, i) { return h('td', { style: numCol[cols[i]] ? 'text-align:right;font-weight:700' : '', text: v == null ? '' : String(v) }); })); });
+    invEl.appendChild(h('div', { class: 'tw' }, [h('table', { class: 'tbl' }, [h('thead', {}, [h('tr', {}, cols.map(function (c) { return h('th', { text: c, style: numCol[c] ? 'text-align:right' : '' }); }))]), h('tbody', {}, rows)])]));
+    if (list.length > n) invEl.appendChild(h('div', { class: 'sub', style: 'margin-top:8px', text: 'Menampilkan ' + n + ' dari ' + list.length + ' baris. Persempit dengan pencarian, atau unduh Excel untuk semuanya.' }));
   }
   function drawInv() {
     if (isTek()) { drawTekInv(); return; }
     invEl.innerHTML = ''; buildInvSub();
     if (invView === 'pasang') { drawPasang(); return; }
-    if (invView === 'ready') {
-      invEl.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+    if (invView === 'ready' || invView === 'parts' || invView === 'order') {
+      invEl.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
         return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
       })));
       drawTekInv(true); return;
@@ -4398,7 +4570,7 @@ var QR = (function () {
       return;
     }
     if (!invData) return;
-    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
       return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
     }));
     invEl.appendChild(vsw);
