@@ -35,7 +35,7 @@
     run: make({}),
     url: { getLocation: function (cb) { var p = {}; try { new URLSearchParams(location.search).forEach(function (v, k) { p[k] = v; }); } catch (e) {} cb({ parameter: p, hash: location.hash.replace(/^#/, '') }); } }
   } };
-  window.__APP_VER = '1.4.1';
+  window.__APP_VER = '1.5.0';
 })();
 </script>
 
@@ -941,6 +941,7 @@ var QR = (function () {
       if (t === 'set') return;
       if (t === 'vtg') { b.style.display = cfg && cfg.vtag ? '' : 'none'; return; }
       if (t === 'xf') { b.style.display = tek ? '' : 'none'; return; }
+      if (t === 'adm') { b.style.display = 'none'; return; }   // Administrasi sekarang ada di Riwayat
       b.style.display = tek && !TEK_OK[t] ? 'none' : '';
     });
     if (tek) { document.getElementById('navSet').style.display = 'none'; document.getElementById('extSub').style.display = 'none'; document.getElementById('invSub').style.display = 'none'; document.getElementById('dashSub').style.display = 'none'; document.getElementById('histSub').style.display = 'none'; ['sbData', 'sbFolder'].forEach(function (i) { var e = document.getElementById(i); if (e) e.setAttribute('data-tek', '1'); }); }
@@ -1741,13 +1742,13 @@ var QR = (function () {
   /* ================= request eksternal (SPV) ================= */
   var extForm = false, extData = null, extBusy = false, extErr = '', extQ = '', extDepot = '', extTab = 'todo', extOpen = {}, extDepots = [], extPulseT = null, extSeen = null, extLocal = {}, extAppUrl = '';
   function extStage(st) { return st === 'Selesai' ? 'done' : st === 'Batal' ? 'cancel' : st === 'Siap Dikirim' ? 'ready' : 'todo'; }
-  var EXT_STAGE_TXT = { todo: 'Perlu disiapkan', ready: 'Siap dikirim', done: 'Selesai', cancel: 'Batal' };
+  var EXT_STAGE_TXT = { todo: 'Perlu disiapkan', ready: 'Sudah dikirim', done: 'Selesai', cancel: 'Batal' };
   function ensureExt(force) {
     if (extBusy) return;
     if (extData && !force && Date.now() - extData._t < 30000) { drawExt(); return; }
     extBusy = true; extErr = ''; drawExt();
-    run('getExtRequests', code).then(function (d) { d._t = Date.now(); extData = d; extDepots = d.depots || extDepots; extBusy = false; buildExtSub(); drawExt(); })
-      .catch(function (e) { extBusy = false; extErr = e.message; drawExt(); });
+    run('getExtRequests', code).then(function (d) { d._t = Date.now(); extData = d; extDepots = d.depots || extDepots; extBusy = false; buildExtSub(); drawExt(); if (tab === 'inv' && !isTek()) drawInv(); })
+      .catch(function (e) { extBusy = false; extErr = e.message; drawExt(); if (tab === 'inv' && !isTek()) drawInv(); });
   }
   function extGroups() {
     var m = {}, order = [];
@@ -1894,7 +1895,7 @@ var QR = (function () {
     });
     el.appendChild(h('div', { class: 'panel', style: 'margin-bottom:6px' }, [h('div', { style: 'display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center' }, [
       h('div', {}, [h('h3', { style: 'margin:0', text: 'Request Eksternal – ' + (extDepot || 'Semua depot') }),
-        h('div', { class: 'sub', text: 'Alur: Perlu disiapkan → Siap dikirim (semua part diceklis) → Selesai.' })]),
+        h('div', { class: 'sub', text: 'Alur: Perlu disiapkan → Sudah dikirim (semua part diceklis) → Selesai.' })]),
       h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, [
         (extData.sheet && !isTek()) ? h('a', { class: 'btn sec', style: 'text-decoration:none;padding:7px 12px;font-size:13px', href: extData.sheet, target: '_blank', rel: 'noopener', text: 'Buka Sheet' }) : null,
         isTek() ? null : h('button', { type: 'button', class: 'btn sec', style: 'padding:7px 12px;font-size:13px', text: 'Salin link dashboard', onclick: function () {
@@ -1920,7 +1921,7 @@ var QR = (function () {
   function extCard(g) {
     var stage = extStage(g.st), nReady = g.rows.filter(function (r) { return r.ready || r.empty; }).length;
     var open = extOpen[g.id] !== false;
-    var pill = h('span', { class: 'xt-pill ' + (stage === 'done' ? 'ok' : stage === 'cancel' ? 'bad' : stage === 'ready' ? 'ok' : 'warn'), text: g.st });
+    var pill = h('span', { class: 'xt-pill ' + (stage === 'done' ? 'ok' : stage === 'cancel' ? 'bad' : stage === 'ready' ? 'ok' : 'warn'), text: stage === 'ready' ? 'Sudah Dikirim' : g.st });
     var head = h('div', { style: 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px;cursor:pointer;flex-wrap:wrap', onclick: function () { extOpen[g.id] = !open; drawExt(); } }, [
       h('div', {}, [h('b', { text: g.id }), h('div', { class: 'sub', text: (g.tgl || '') + ' · ' + g.depot + ' · Leader ' + g.leader + ' · Nama ' + g.rnm + (g.nopol ? ' · Nopol ' + (g.nopol.split(', ').length > 3 ? g.nopol.split(', ').slice(0, 3).join(', ') + ' +' + (g.nopol.split(', ').length - 3) + ' lagi' : g.nopol) : '') })]),
       h('div', { style: 'text-align:right' }, [pill, h('div', { class: 'upd', text: nReady + '/' + g.rows.length + ' part siap · diminta qty ' + g.qty })])]);
@@ -1944,7 +1945,7 @@ var QR = (function () {
         if (!(n >= 0 && n <= r.qty)) { alert('Qty diberikan harus 0 sampai ' + r.qty); qin.focus(); return; }
         extConfirmReady(g, r, n, function (res, bengkel, nt) {
           r.ready = n > 0; r.empty = n === 0; r.note = n === 0 ? String(nt || '').trim() : ''; r.given = n; r.src = n > 0 ? bengkel : ''; delete extLocal[key]; extSetStatus(g, res.status);
-          if (res.status === 'Siap Dikirim') extToast0('Semua part ' + g.id + ' sudah siap. Request pindah ke tahap Siap dikirim.');
+          if (res.status === 'Siap Dikirim') extToast0('Semua part ' + g.id + ' sudah siap. Request pindah ke tahap Sudah dikirim.');
           drawExt(); extPoll();
         });
       } });
@@ -4410,8 +4411,8 @@ var QR = (function () {
       var df = cfg && cfg.fields ? cfg.fields.filter(function (f) { return f.key === 'depot'; })[0] : null;
       var deps = (df && df.options) ? df.options.slice() : [];
       var mk = function (label, on, fn) { box.appendChild(h('button', { type: 'button', class: 'sbi sbs' + (on ? ' on' : ''), onclick: fn }, [h('span', { text: label })])); };
-      mk('Semua depot', tab === k && !flt.depot && !(k === 'hist' && flt.flag), function () { flt.depot = ''; flt.flag = ''; shown = 60; showTab(k); });
-      deps.forEach(function (d) { mk(shortDep(d), tab === k && flt.depot === d, function () { flt.depot = d; shown = 60; showTab(k); }); });
+      mk(k === 'hist' ? 'Semua data' : 'Semua depot', tab === k && !flt.depot && !(k === 'hist' && flt.flag), function () { flt.depot = ''; flt.flag = ''; shown = 60; showTab(k); });
+      if (k !== 'hist') deps.forEach(function (d) { mk(shortDep(d), tab === k && flt.depot === d, function () { flt.depot = d; shown = 60; showTab(k); }); });
       if (k === 'hist') [['done', 'Selesai (Done)'], ['pendOnly', 'Pending'], ['pendingPart', 'Pending Part']].forEach(function (p) {
         if (FLAGS[p[0]]) mk(p[1], tab === k && flt.flag === p[0], function () { flt.flag = p[0]; shown = 60; showTab(k); });
       });
@@ -4421,12 +4422,8 @@ var QR = (function () {
   function buildInvSub() {
     var box = document.getElementById('invSub'); if (!box) return;
     box.innerHTML = '';
-    if (!invData) return;
-    var deps = {}; (invData.items || []).forEach(function (x) { if (x.d) deps[x.d] = 1; });
     var mk = function (label, on, fn) { box.appendChild(h('button', { type: 'button', class: 'sbi sbs' + (on ? ' on' : ''), onclick: fn }, [h('span', { text: label })])); };
-    mk('Semua depot', invView === 'kirim' && !invF.depot, function () { invView = 'kirim'; invF.depot = ''; showTab('inv'); });
-    Object.keys(deps).sort().forEach(function (d) { mk(shortDep(d), invView === 'kirim' && invF.depot === d, function () { invView = 'kirim'; invF.depot = d; showTab('inv'); }); });
-    mk('Stok per bengkel', invView === 'stok', function () { invView = 'stok'; showTab('inv'); });
+    mk('Pengiriman ke depot', invView === 'kirim', function () { invView = 'kirim'; showTab('inv'); });
     mk('Part order terpasang', invView === 'pasang', function () { invView = 'pasang'; showTab('inv'); });
     mk('Daftar Part (per type)', invView === 'parts', function () { invView = 'parts'; showTab('inv'); });
     mk('Incoming Part (Order)', invView === 'order', function () { invView = 'order'; showTab('inv'); });
@@ -4442,7 +4439,7 @@ var QR = (function () {
   function drawPasang() {
     ensurePasang(false);
     if (!pasData) { invEl.appendChild(pasErr ? statusLine('Gagal memuat: ' + pasErr, true) : statusLine('Memuat part order...')); return; }
-    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
       return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
     }));
     invEl.appendChild(vsw);
@@ -4567,9 +4564,16 @@ var QR = (function () {
       yes.className = 'pill' + (dms === 'Ya' ? ' on' : ''); no.className = 'pill' + (dms === 'Tidak' ? ' on' : '');
       dmsBox.style.display = dms === 'Ya' ? '' : 'none'; invBox.style.display = dms ? '' : 'none'; metBox.style.display = dms === 'Ya' ? '' : 'none';
     }
-    yes.onclick = function () { dms = 'Ya'; paint(); }; no.onclick = function () { dms = 'Tidak'; paint(); };
+    var dk = 'wa_admdraft_' + r.tab + '|' + r.row, dnote = h('div', { class: 'sub', style: 'margin-top:6px;color:var(--accent-d)' });
+    function saveDraft() { var v = {}; Object.keys(f).forEach(function (k) { v[k] = f[k].value; }); try { localStorage.setItem(dk, JSON.stringify({ dms: dms, v: v })); } catch (e) {} }
+    try {
+      var dr0 = JSON.parse(localStorage.getItem(dk) || 'null');
+      if (dr0) { if (dr0.dms) dms = dr0.dms; Object.keys(f).forEach(function (k) { if (dr0.v && dr0.v[k] != null) f[k].value = dr0.v[k]; }); dnote.textContent = 'Draft yang belum disimpan dipulihkan. Tekan Simpan untuk menyimpannya ke sheet.'; }
+    } catch (e) {}
+    Object.keys(f).forEach(function (k) { f[k].addEventListener('input', saveDraft); f[k].addEventListener('change', saveDraft); });
+    yes.onclick = function () { dms = 'Ya'; paint(); saveDraft(); }; no.onclick = function () { dms = 'Tidak'; paint(); saveDraft(); };
     paint();
-    var save = h('button', { type: 'button', class: 'btn', style: 'margin-top:14px', text: 'Simpan', onclick: function () {
+    var save = h('button', { type: 'button', class: 'btn', style: 'margin-top:14px', text: 'Simpan (boleh belum lengkap)', onclick: function () {
       if (!dms) { msg.className = 'err'; msg.textContent = 'Pilih dulu: di-input ke DMS atau tidak.'; return; }
       var data = { dms: dms };
       Object.keys(f).forEach(function (k) { if (dms === 'Tidak' && (k === 'wo' || k === 'tglWo' || k === 'wc' || k === 'tglWc' || k === 'l1' || k === 'l2' || k === 'l3' || k === 'metode')) return; data[k] = f[k].value; });
@@ -4581,11 +4585,12 @@ var QR = (function () {
           if (data.wo && !data.tglWo) r.tglWo = iso(new Date());
           if (data.inv && !data.tglInv) r.tglInv = iso(new Date());
           r.ok = admOkLocal(r);
+          try { localStorage.removeItem(dk); } catch (e) {}
           close(); admBadge(); if (tab === 'adm') drawAdm(); else drawAll(); toast('Administrasi ' + r.plate + (r.ok ? ' lengkap' : ' tersimpan, masih ada yang kosong'));
-        } else { save.disabled = false; save.textContent = 'Simpan'; msg.className = 'err'; msg.textContent = (res && res.errors && res.errors.join(', ')) || 'Gagal menyimpan'; }
-      }).catch(function (e) { save.disabled = false; save.textContent = 'Simpan'; msg.className = 'err'; msg.textContent = e.message || 'Gagal menyimpan'; });
+        } else { save.disabled = false; save.textContent = 'Simpan (boleh belum lengkap)'; msg.className = 'err'; msg.textContent = (res && res.errors && res.errors.join(', ')) || 'Gagal menyimpan'; }
+      }).catch(function (e) { save.disabled = false; save.textContent = 'Simpan (boleh belum lengkap)'; msg.className = 'err'; msg.textContent = e.message || 'Gagal menyimpan'; });
     } });
-    pn.appendChild(save); pn.appendChild(msg);
+    pn.appendChild(dnote); pn.appendChild(save); pn.appendChild(h('div', { class: 'sub', style: 'margin-top:6px', text: 'Boleh disimpan walau belum lengkap. Data tersimpan di sheet dan bisa dilanjutkan nanti; badge di Riwayat tetap "belum lengkap" sampai semua terisi.' })); pn.appendChild(msg);
     dlgEl.innerHTML = ''; dlgEl.appendChild(pn); dlgEl.classList.add('on'); dlgEl.scrollTop = 0;
   }
   var tkMode = 'ready';
@@ -4640,12 +4645,13 @@ var QR = (function () {
   }
   function drawInv() {
     if (isTek()) { drawTekInv(); return; }
-    invEl.innerHTML = ''; buildInvSub();
+    invEl.innerHTML = ''; if (invView === 'stok') invView = 'kirim'; buildInvSub();
     if (invView === 'pasang') { drawPasang(); return; }
-    if (invView === 'ready' || invView === 'parts' || invView === 'order') {
-      invEl.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+    if (invView === 'ready' || invView === 'parts' || invView === 'order' || invView === 'kirim') {
+      invEl.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
         return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
       })));
+      if (invView === 'kirim') { drawKirim(); return; }
       drawTekInv(true); return;
     }
     if (invBusy && !invData) { invEl.appendChild(statusLine('Memuat data inventaris...')); return; }
@@ -4655,7 +4661,7 @@ var QR = (function () {
       return;
     }
     if (!invData) return;
-    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
       return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
     }));
     invEl.appendChild(vsw);
@@ -4700,6 +4706,44 @@ var QR = (function () {
       }))]);
     invEl.appendChild(h('div', { class: 'tw' }, [tb]));
     invEl.appendChild(h('div', { class: 'upd', style: 'margin-top:8px', text: 'Sumber: kolom SPAREPART & NO PART di ' + (invData.sources || []).map(function (x) { return x.label + ' (' + x.n + ' baris)'; }).join(', ') + '. Total = jumlah QTY. Data per ' + invData.at + '.' }));
+  }
+  /* Pengiriman ke depot = rekap Request Part (tab Request Eksternal), per part */
+  var krF = { st: '', q: '' };
+  function drawKirim() {
+    if (!extData && !extBusy) ensureExt(false);
+    if (extErr && !extData) { invEl.appendChild(statusLine('Gagal memuat: ' + extErr, true)); return; }
+    if (!extData) { invEl.appendChild(statusLine('Memuat rekap request part...')); return; }
+    var map = {}, order = [], reqIds = {};
+    extGroups().forEach(function (g) {
+      var stg = extStage(g.st);
+      if (krF.st && stg !== krF.st) return;
+      g.rows.forEach(function (r) {
+        var key = (String(r.kode || '').trim() || '-') + '|' + String(r.nama || '').trim().toUpperCase();
+        var o = map[key]; if (!o) { o = map[key] = { kode: r.kode || '-', nama: r.nama || '-', type: r.type || '', req: 0, given: 0, todo: 0, ready: 0, done: 0, cancel: 0, n: 0, last: '' }; order.push(o); }
+        var q = Number(r.qty) || 0; o.req += q; o.n++; o[stg] += q; if (r.given != null) o.given += Number(r.given) || 0;
+        if ((g.tgl || '') > o.last) o.last = g.tgl || '';
+      });
+    });
+    var ws = krF.q.trim().toUpperCase().split(/\s+/).filter(Boolean);
+    var list = order.filter(function (o) { var t = (o.kode + ' ' + o.nama + ' ' + o.type).toUpperCase(); return ws.every(function (w) { return t.indexOf(w) >= 0; }); })
+      .sort(function (a, b) { return b.req - a.req; });
+    var sm = function (k) { return list.reduce(function (n, o) { return n + o[k]; }, 0); };
+    invEl.appendChild(h('div', { class: 'kpis' }, [kpi('Jenis part', list.length, '', ''), kpi('Total qty request', sm('req'), '', ''), kpi('Perlu disiapkan', sm('todo'), 'warn', ''), kpi('Sudah dikirim', sm('ready'), 'ok', ''), kpi('Selesai', sm('done'), 'ok', '')]));
+    var inp = h('input', { type: 'text', placeholder: 'Cari kode atau nama part...', autocomplete: 'off', value: krF.q, oninput: function () { krF.q = inp.value; var p = inp.selectionStart; drawInv(); var n = invEl.querySelector('input[type=text]'); if (n) { n.focus(); try { n.setSelectionRange(p, p); } catch (e) {} } } });
+    var ssel = h('select', { onchange: function () { krF.st = ssel.value; drawInv(); } }, [['', 'Semua status'], ['todo', 'Perlu disiapkan'], ['ready', 'Sudah dikirim'], ['done', 'Selesai'], ['cancel', 'Batal']].map(function (x) { return h('option', { value: x[0], text: x[1] }); }));
+    ssel.value = krF.st;
+    var head = ['Kode Part', 'Nama Part', 'Type', 'Qty Request', 'Qty Diberi', 'Perlu disiapkan', 'Sudah dikirim', 'Selesai', 'Batal', 'Jml Request', 'Terakhir'];
+    var rowOf = function (o) { return [o.kode, o.nama, o.type, o.req, o.given, o.todo, o.ready, o.done, o.cancel, o.n, o.last ? showDate(o.last) : '']; };
+    invEl.appendChild(h('div', { class: 'tb' }, [inp, ssel, h('span', { class: 'upd', text: list.length + ' jenis' }),
+      h('button', { type: 'button', class: 'btn sec', style: 'padding:6px 12px;font-size:13px', text: extBusy ? 'Memuat...' : 'Muat ulang', disabled: extBusy, onclick: function () { ensureExt(true); drawInv(); } }),
+      h('button', { type: 'button', class: 'btn sec', style: 'padding:6px 12px;font-size:13px', text: 'Unduh Excel', onclick: function () {
+        XL.save(XL.build([{ name: 'Pengiriman ke depot', cols: head.map(function (c) { return { h: c, w: c === 'Nama Part' ? 40 : 14 }; }), rows: list.map(function (o) { return rowOf(o).map(function (v) { return typeof v === 'number' ? v : String(v == null ? '' : v); }); }) }]), 'pengiriman-ke-depot-' + iso(new Date()) + '.xlsx');
+      } })]));
+    if (!list.length) { invEl.appendChild(statusLine('Belum ada request part yang cocok.')); return; }
+    var num = { 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1 };
+    invEl.appendChild(h('div', { class: 'tw' }, [h('table', { class: 'tbl', style: 'min-width:860px' }, [h('thead', {}, [h('tr', {}, head.map(function (t, i) { return h('th', { class: num[i] ? 'num' : '', text: t }); }))]),
+      h('tbody', {}, list.map(function (o) { return h('tr', {}, rowOf(o).map(function (v, i) { return h('td', { class: (i === 0 ? 'code ' : '') + (num[i] ? 'num' : ''), text: String(v == null ? '' : v) }); })); }))])]));
+    invEl.appendChild(h('div', { class: 'upd', style: 'margin-top:8px', text: 'Sumber: Request Eksternal (Request Part). Qty per tahap dihitung dari status request-nya; Qty Diberi = jumlah yang diisi saat menyiapkan.' }));
   }
   function drawStok() {
     var all = (invData.stock) || [];
