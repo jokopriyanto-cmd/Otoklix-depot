@@ -35,7 +35,7 @@
     run: make({}),
     url: { getLocation: function (cb) { var p = {}; try { new URLSearchParams(location.search).forEach(function (v, k) { p[k] = v; }); } catch (e) {} cb({ parameter: p, hash: location.hash.replace(/^#/, '') }); } }
   } };
-  window.__APP_VER = '1.5.0';
+  window.__APP_VER = '1.5.1';
 })();
 </script>
 
@@ -982,12 +982,14 @@ var QR = (function () {
   }
   var vtgFrame = null, vtgTok = '', vtgBusy = false, vtgCase = '', vtgUser = '';
   function vtgReset() { vtgFrame = null; vtgTok = ''; vtgBusy = false; vtgCase = ''; window.__vtgCase = ''; var b = document.getElementById('vtgv'); if (b) { b.innerHTML = ''; b.style.cssText = 'display:none'; } }
-  var vtgForceNew = false;
+  var vtgForceNew = false, vtgPrefill = null;
   function vtgUrl(caseId, force) {
     var u = cfg.vtagApp.replace(/#.*$/, '');
     if (force && !caseId) u += (u.indexOf('?') < 0 ? '?' : '&') + 'n=' + Date.now();
     if (caseId) u += (u.indexOf('?') < 0 ? '?' : '&') + 'case=' + encodeURIComponent(caseId);
-    return u + '#sso=' + (vtgTok || 'none') + (caseId ? '' : '&go=new');
+    var pf = '';
+    if (!caseId && vtgPrefill && (force || !vtgFrame)) { try { pf = '&pf=' + btoa(unescape(encodeURIComponent(JSON.stringify(vtgPrefill)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); } catch (e) { pf = ''; } vtgPrefill = null; }
+    return u + '#sso=' + (vtgTok || 'none') + (caseId ? '' : '&go=new') + pf;
   }
   function drawVtg(caseId) {
     var box = document.getElementById('vtgv');
@@ -3231,8 +3233,8 @@ var QR = (function () {
     if (!cfg || !cfg.vtag || !cfg.vtagApp || !/^pending/i.test(String((data && data.unitProgres) || ''))) return null;
     return h('div', { class: 'card', style: 'text-align:left;margin:12px 0;border:2px solid var(--accent)' }, [
       h('b', { text: 'Unit ' + String(data.unitProgres) + ' \u2014 lanjut ke Investigasi VTAG?' }),
-      h('div', { class: 'hint', style: 'margin:4px 0 10px', text: 'Catat kasus ini di Investigasi supaya foreman bisa memvalidasi. Kamu langsung dibawa ke halaman "Input kasus baru".' }),
-      h('button', { type: 'button', class: 'btn', text: 'Lanjut investigasi VTAG', onclick: function () { window.__vtgCase = ''; vtgForceNew = true; showTab('vtg'); } })]);
+      h('div', { class: 'hint', style: 'margin:4px 0 10px', text: 'Catat kasus ini di Investigasi supaya foreman bisa memvalidasi. Kamu langsung dibawa ke halaman "Input kasus baru" dengan data kendaraan (VIN, nopol, model, ODO, tanggal, bengkel) sudah terisi.' }),
+      h('button', { type: 'button', class: 'btn', text: 'Lanjut investigasi VTAG', onclick: function () { window.__vtgCase = ''; vtgForceNew = true; vtgPrefill = { vin: data.vin, nopol: data.plate, model: data.type, odo: data.km, date: data.tanggal, outlet: data.bengkel }; showTab('vtg'); } })]);
   }
   function done(res, data, usedSid, sig) {
     loadStok(true);
