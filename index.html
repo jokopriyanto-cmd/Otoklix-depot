@@ -35,7 +35,7 @@
     run: make({}),
     url: { getLocation: function (cb) { var p = {}; try { new URLSearchParams(location.search).forEach(function (v, k) { p[k] = v; }); } catch (e) {} cb({ parameter: p, hash: location.hash.replace(/^#/, '') }); } }
   } };
-  window.__APP_VER = '1.4.0';
+  window.__APP_VER = '1.4.1';
 })();
 </script>
 
@@ -4427,6 +4427,7 @@ var QR = (function () {
     mk('Semua depot', invView === 'kirim' && !invF.depot, function () { invView = 'kirim'; invF.depot = ''; showTab('inv'); });
     Object.keys(deps).sort().forEach(function (d) { mk(shortDep(d), invView === 'kirim' && invF.depot === d, function () { invView = 'kirim'; invF.depot = d; showTab('inv'); }); });
     mk('Stok per bengkel', invView === 'stok', function () { invView = 'stok'; showTab('inv'); });
+    mk('Part order terpasang', invView === 'pasang', function () { invView = 'pasang'; showTab('inv'); });
     mk('Daftar Part (per type)', invView === 'parts', function () { invView = 'parts'; showTab('inv'); });
     mk('Incoming Part (Order)', invView === 'order', function () { invView = 'order'; showTab('inv'); });
     mk('Part Ready (Balance KS)', invView === 'ready', function () { invView = 'ready'; showTab('inv'); });
@@ -4441,7 +4442,7 @@ var QR = (function () {
   function drawPasang() {
     ensurePasang(false);
     if (!pasData) { invEl.appendChild(pasErr ? statusLine('Gagal memuat: ' + pasErr, true) : statusLine('Memuat part order...')); return; }
-    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
       return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
     }));
     invEl.appendChild(vsw);
@@ -4642,7 +4643,7 @@ var QR = (function () {
     invEl.innerHTML = ''; buildInvSub();
     if (invView === 'pasang') { drawPasang(); return; }
     if (invView === 'ready' || invView === 'parts' || invView === 'order') {
-      invEl.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+      invEl.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
         return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
       })));
       drawTekInv(true); return;
@@ -4654,7 +4655,7 @@ var QR = (function () {
       return;
     }
     if (!invData) return;
-    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
       return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
     }));
     invEl.appendChild(vsw);
