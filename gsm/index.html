@@ -490,7 +490,7 @@ body.mini .ni.ns{display:none}
     var body = keys.map(function (k) {
       var o = m[k], kc = Object.keys(o.plates).length;
       tot.n += o.n; tot.k += kc; tot.d += o.d; tot.p += o.p; tot.w += o.w; tot.nw += o.nw;
-      return h('tr', { class: 'clk', title: 'Lihat di Riwayat', onclick: function () { goHist({ depot: k === 'Belum diisi' ? '' : k }); } }, [h('td', { text: k }), h('td', { class: 'n', text: String(kc) }), h('td', { class: 'n', text: String(o.n) }), h('td', { class: 'n', text: String(o.d) }), h('td', { class: 'n', text: String(o.p) }), h('td', { class: 'n', text: String(o.w) }), h('td', { class: 'n', text: String(o.nw) })]);
+      return h('tr', { class: 'clk', title: 'Lihat di Riwayat', onclick: function () { goHist({ depot: k === 'Belum diisi' ? '' : k }); } }, [h('td', { text: String(k).replace(/^\s*Depot\s*-\s*/i, '') }), h('td', { class: 'n', text: String(kc) }), h('td', { class: 'n', text: String(o.n) }), h('td', { class: 'n', text: String(o.d) }), h('td', { class: 'n', text: String(o.p) }), h('td', { class: 'n', text: String(o.w) }), h('td', { class: 'n', text: String(o.nw) })]);
     });
     var pl = {}; rows.forEach(function (r) { if (r.plate) pl[r.plate] = 1; });
     if (keys.length > 1) body.push(h('tr', { class: 'tot' }, [h('td', { text: 'Total' }), h('td', { class: 'n', text: String(Object.keys(pl).length) }), h('td', { class: 'n', text: String(tot.n) }), h('td', { class: 'n', text: String(tot.d) }), h('td', { class: 'n', text: String(tot.p) }), h('td', { class: 'n', text: String(tot.w) }), h('td', { class: 'n', text: String(tot.nw) })]));
@@ -541,7 +541,7 @@ body.mini .ni.ns{display:none}
     var techs = {}; data.rows.forEach(function (r) { r._t.forEach(function (t) { techs[t] = 1; }); });
     var tools = h('div', { class: 'tools' });
     if (data.all) {
-      var dsel = h('select', { onchange: function () { flt.depot = dsel.value; draw(); } }, [h('option', { value: '', text: 'Semua depot' })].concat(data.depots.map(function (d) { return h('option', { value: d, text: d }); }))); dsel.value = flt.depot; tools.appendChild(dsel);
+      var dsel = h('select', { onchange: function () { flt.depot = dsel.value; draw(); } }, [h('option', { value: '', text: 'Semua depot' })].concat(data.depots.map(function (d) { return h('option', { value: d, text: String(d).replace(/^\s*Depot\s*-\s*/i, '') }); }))); dsel.value = flt.depot; tools.appendChild(dsel);
     }
     var tsel = h('select', { onchange: function () { flt.tech = tsel.value; draw(); } }, [h('option', { value: '', text: 'Semua teknisi' })].concat(Object.keys(techs).sort().map(function (t) { return h('option', { value: t, text: t }); }))); tsel.value = flt.tech;
     var ssel = h('select', { onchange: function () { flt.status = ssel.value; draw(); } }, [['', 'Semua status'], ['done', 'Done'], ['pending', 'Pending'], ['pp', 'Pending Part'], ['notdone', 'Semua belum selesai'], ['other', 'Lainnya']].map(function (x) { return h('option', { value: x[0], text: x[1] }); })); ssel.value = flt.status;
@@ -587,7 +587,7 @@ body.mini .ni.ns{display:none}
     var tools = h('div', { class: 'tools' });
     var inp = h('input', { type: 'text', placeholder: 'Cari ID, part, kode, nama, nopol...', value: F.q, oninput: function () { F.q = inp.value; var p = inp.selectionStart; draw(); var n = app.querySelector('input'); n.focus(); try { n.setSelectionRange(p, p); } catch (e) {} } });
     tools.appendChild(inp);
-    if (data.all) { var dsel = h('select', { onchange: function () { F.depot = dsel.value; draw(); } }, [h('option', { value: '', text: 'Semua depot' })].concat(data.depots.map(function (d) { return h('option', { value: d.replace(/^Depot - /, ''), text: d }); }))); dsel.value = F.depot; tools.appendChild(dsel); }
+    if (data.all) { var dsel = h('select', { onchange: function () { F.depot = dsel.value; draw(); } }, [h('option', { value: '', text: 'Semua depot' })].concat(data.depots.map(function (d) { return h('option', { value: d.replace(/^Depot - /, ''), text: String(d).replace(/^\s*Depot\s*-\s*/i, '') }); }))); dsel.value = F.depot; tools.appendChild(dsel); }
     var ssel = h('select', { onchange: function () { F.st = ssel.value; draw(); } }, [['', 'Semua status'], ['todo', 'Perlu disiapkan'], ['ready', 'Terkirim'], ['done', 'Selesai'], ['cancel', 'Batal']].map(function (x) { return h('option', { value: x[0], text: x[1] }); })); ssel.value = F.st;
     tools.appendChild(ssel); app.appendChild(tools);
     var ws = F.q.trim().toUpperCase().split(/\s+/).filter(Boolean);
@@ -629,7 +629,7 @@ body.mini .ni.ns{display:none}
   function drawHist() {
     periodBar();
     var tools = h('div', { class: 'tools' });
-    if (data.all) { var dsel = h('select', { onchange: function () { flt.depot = dsel.value; shown = 60; draw(); } }, [h('option', { value: '', text: 'Semua depot' })].concat(data.depots.map(function (d) { return h('option', { value: d, text: d }); }))); dsel.value = flt.depot; tools.appendChild(dsel); }
+    if (data.all) { var dsel = h('select', { onchange: function () { flt.depot = dsel.value; shown = 60; draw(); } }, [h('option', { value: '', text: 'Semua depot' })].concat(data.depots.map(function (d) { return h('option', { value: d, text: String(d).replace(/^\s*Depot\s*-\s*/i, '') }); }))); dsel.value = flt.depot; tools.appendChild(dsel); }
     var techs = {}; data.rows.forEach(function (r) { r._t.forEach(function (t) { techs[t] = 1; }); });
     var tsel = h('select', { onchange: function () { flt.tech = tsel.value; shown = 60; draw(); } }, [h('option', { value: '', text: 'Semua teknisi' })].concat(Object.keys(techs).sort().map(function (t) { return h('option', { value: t, text: t }); }))); tsel.value = flt.tech;
     var ssel = h('select', { onchange: function () { flt.status = ssel.value; shown = 60; draw(); } }, [['', 'Semua status'], ['done', 'Done'], ['notdone', 'Belum selesai'], ['pp', 'Pending Part'], ['other', 'Lainnya']].map(function (x) { return h('option', { value: x[0], text: x[1] }); })); ssel.value = flt.status;

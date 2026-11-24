@@ -35,7 +35,7 @@
     run: make({}),
     url: { getLocation: function (cb) { var p = {}; try { new URLSearchParams(location.search).forEach(function (v, k) { p[k] = v; }); } catch (e) {} cb({ parameter: p, hash: location.hash.replace(/^#/, '') }); } }
   } };
-  window.__APP_VER = '1.3.0';
+  window.__APP_VER = '1.4.0';
 })();
 </script>
 
@@ -574,9 +574,9 @@ body.hasSb.sbhide .bar{left:64px}
 <button type="button" class="sbi" data-t="xf" style="display:none"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h9"/></svg><span>Isi Form Request</span><i class="mbadge" id="mbXf"></i></button>
 <button type="button" class="sbi" data-t="dash"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Dashboard</span></button>
 <div id="dashSub" class="sbsub" style="display:none"></div>
-<button type="button" class="sbi" data-t="hist"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Riwayat</span></button>
+<button type="button" class="sbi" data-t="hist"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Riwayat</span><i class="mbadge" id="mbHist"></i></button>
 <div id="histSub" class="sbsub" style="display:none"></div>
-<button type="button" class="sbi" data-t="adm"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h9"/><path d="M8 17h5"/></svg><span>Administrasi</span></button>
+<button type="button" class="sbi" data-t="adm" style="display:none"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h9"/><path d="M8 17h5"/></svg><span>Administrasi</span></button>
 <button type="button" class="sbi" data-t="wo"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6"/><path d="M8 14h8M8 18h5"/></svg><span>WO PDF</span><i class="mbadge" id="mbWo"></i></button>
 <button type="button" class="sbi" data-t="inv"><svg viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Inventaris Part</span></button>
 <div id="invSub" class="sbsub" style="display:none"></div>
@@ -981,15 +981,17 @@ var QR = (function () {
   }
   var vtgFrame = null, vtgTok = '', vtgBusy = false, vtgCase = '', vtgUser = '';
   function vtgReset() { vtgFrame = null; vtgTok = ''; vtgBusy = false; vtgCase = ''; window.__vtgCase = ''; var b = document.getElementById('vtgv'); if (b) { b.innerHTML = ''; b.style.cssText = 'display:none'; } }
-  function vtgUrl(caseId) {
+  var vtgForceNew = false;
+  function vtgUrl(caseId, force) {
     var u = cfg.vtagApp.replace(/#.*$/, '');
+    if (force && !caseId) u += (u.indexOf('?') < 0 ? '?' : '&') + 'n=' + Date.now();
     if (caseId) u += (u.indexOf('?') < 0 ? '?' : '&') + 'case=' + encodeURIComponent(caseId);
     return u + '#sso=' + (vtgTok || 'none') + (caseId ? '' : '&go=new');
   }
   function drawVtg(caseId) {
     var box = document.getElementById('vtgv');
     if (!cfg || !cfg.vtag || !cfg.vtagApp) { box.innerHTML = ''; box.appendChild(h('div', { class: 'wrap', style: 'padding:20px' }, [h('div', { class: 'err', text: 'Aplikasi Investigasi belum diatur.' })])); return; }
-    if (vtgFrame) { if (caseId && caseId !== vtgCase) { vtgCase = caseId; vtgFrame.src = vtgUrl(caseId); } return; }
+    if (vtgFrame) { if (caseId && caseId !== vtgCase) { vtgCase = caseId; vtgFrame.src = vtgUrl(caseId); } else if (vtgForceNew && !caseId) { vtgForceNew = false; vtgCase = ''; vtgFrame.src = vtgUrl('', true); } return; }
     if (vtgBusy) return;
     vtgBusy = true; vtgCase = caseId || '';
     box.innerHTML = ''; box.style.cssText = 'padding:20px'; box.appendChild(h('div', { class: 'hint', text: 'Masuk ke Investigasi...' }));
@@ -1004,6 +1006,7 @@ var QR = (function () {
         h('a', { href: cfg.vtagApp, target: '_blank', rel: 'noopener', style: 'margin-left:auto;color:var(--navy);font-weight:700', text: 'Buka di tab baru' })
       ]);
       box.innerHTML = '';
+      vtgForceNew = false;
       vtgFrame = h('iframe', { src: vtgUrl(vtgCase), allow: 'camera; microphone; clipboard-write; fullscreen', style: 'width:100%;height:calc(100% - 34px);border:0;background:#fff' });
       box.appendChild(bar); box.appendChild(vtgFrame);
     }).catch(function (e) { vtgBusy = false; box.innerHTML = ''; box.appendChild(h('div', { class: 'err', text: 'Gagal membuka Investigasi: ' + e.message })); });
@@ -1211,7 +1214,7 @@ var QR = (function () {
   function render() {
     app.innerHTML = '';
     cards = {}; auto = {}; vals = {}; files = {}; pk = {}; sel = {}; dirtyKode = false; curCi = null; editJob = null; renderedMode = mode;
-    if (mode === 'form') { app.appendChild(ciPickCard()); app.appendChild(pendCard()); }
+    if (mode === 'form') { var gbx = h('div', { id: 'guardBox' }); app.appendChild(gbx); var gc0 = guardCard(); if (gc0) gbx.appendChild(gc0); app.appendChild(ciPickCard()); app.appendChild(pendCard()); }
     else app.appendChild(h('div', { class: 'card' }, [h('span', { class: 'lbl', text: 'Check-in kendaraan' }), h('div', { class: 'hint', text: 'Isi data kendaraan sebelum mulai kerja: Bengkel, Nama Teknisi, Depot, Type, foto tampak belakang, kilometer, VIN, No. Plate, Hull number, No. VIN, Kilometer, Battery HV, dan Issue. Nanti di Isi Form tinggal pilih check-in kamu, datanya terisi otomatis.' })]));
     FL().forEach(function (f) { var c = fieldCard(f); cards[f.key] = c; app.appendChild(c); });
     if (mode === 'ci' && cfg.cek) app.appendChild(cekCard());
@@ -1257,7 +1260,7 @@ var QR = (function () {
   function loadCi(force) {
     if (!force && ciList && Date.now() - ciAt < 45000) return Promise.resolve(ciList);
     return run('getCheckins', code).then(function (d) {
-      ciList = d; ciAt = Date.now(); updateBadge(); fillCiSel(); if (mode === 'ci') drawCiWait(); if (mode === 'form') cekGate(false);
+      ciList = d; ciAt = Date.now(); updateBadge(); fillCiSel(); guardNotify(); if (mode === 'ci') drawCiWait(); if (mode === 'form') { cekGate(false); var gb = document.getElementById('guardBox'); if (gb) { gb.innerHTML = ''; var gc2 = guardCard(); if (gc2) gb.appendChild(gc2); } }
       if (tab === 'dash' && dash) drawDash();
       return d;
     }).catch(function () { return ciList; });
@@ -1277,9 +1280,21 @@ var QR = (function () {
       h('button', { class: 'btn sec', text: 'Tidak', onclick: function () { overlay(false); } })
     ]);
   }
+  function guardText(g) { return (g.frozen ? 'Akun dibekukan sementara \u2014 check-in baru, request part, dan terima part dikunci. ' : 'Peringatan: ') + g.reasons.join('; ') + '. Lengkapi Isi Form untuk check-in yang menunggu (' + g.count + ' unit' + (g.oldest ? ', tertua ' + g.oldest + ' hari' : '') + ').'; }
+  function guardCard() {
+    var g = ciList && ciList.guard; if (!g || !g.warn) return null;
+    return h('div', { class: 'card', style: 'border:2px solid ' + (g.frozen ? '#c62828' : '#f66100') + ';background:' + (g.frozen ? 'rgba(198,40,40,.08)' : 'rgba(246,97,0,.08)') }, [h('b', { text: g.frozen ? 'Akun dibekukan' : 'Check-in belum dilengkapi' }), h('div', { class: 'hint', style: 'margin-top:4px', text: guardText(g) })]);
+  }
+  var guardToastDone = false;
+  function guardNotify() {
+    var g = ciList && ciList.guard; if (!g || !g.warn || guardToastDone) return;
+    guardToastDone = true; toast(g.frozen ? 'Akun dibekukan: lengkapi Isi Form dulu' : 'Ada check-in belum diisi form (' + g.count + ' unit)');
+  }
   function drawCiWait() {
     var box = document.getElementById('ciWait'); if (!box) return;
     box.innerHTML = '';
+    var gc = guardCard(); if (gc) box.appendChild(gc);
+    var sb = document.getElementById('send'); if (sb && mode === 'ci') sb.disabled = !!(ciList && ciList.guard && ciList.guard.frozen);
     box.appendChild(h('span', { class: 'lbl', text: 'Check-in yang masih menunggu' }));
     if (!ciList) { box.appendChild(h('div', { class: 'hint', text: 'Memuat daftar check-in...' })); return; }
     var w = waiting();
@@ -1683,6 +1698,7 @@ var QR = (function () {
 
   function submitCi() {
     if (busy) return;
+    if (ciList && ciList.guard && ciList.guard.frozen) { alert(guardText(ciList.guard)); return; }
     var data = collect();
     if (!validate(data)) return;
     if (!cekReady()) return;
@@ -1756,7 +1772,7 @@ var QR = (function () {
     box.appendChild(h('button', { type: 'button', class: 'sbi sbs' + (tab === 'ext' && extForm ? ' on' : ''), onclick: function () { extForm = true; showTab('ext'); } }, [h('span', { text: '+ Isi Form Request' })]));
     [''].concat(extDepots).forEach(function (d) {
       var n = d ? (pend[d] || 0) : Object.keys(pend).reduce(function (a, k) { return a + pend[k]; }, 0);
-      var b = h('button', { type: 'button', class: 'sbi sbs' + (tab === 'ext' && !extForm && extDepot === d ? ' on' : ''), onclick: function () { extForm = false; extDepot = d; extTab = 'todo'; showTab('ext'); } }, [h('span', { text: d || 'Semua depot' }), h('i', { class: 'mbadge', text: n ? String(n) : '' })]);
+      var b = h('button', { type: 'button', class: 'sbi sbs' + (tab === 'ext' && !extForm && extDepot === d ? ' on' : ''), onclick: function () { extForm = false; extDepot = d; extTab = 'todo'; showTab('ext'); } }, [h('span', { text: d ? shortDep(d) : 'Semua depot' }), h('i', { class: 'mbadge', text: n ? String(n) : '' })]);
       box.appendChild(b);
     });
     var tot = Object.keys(pend).reduce(function (a, k) { return a + pend[k]; }, 0);
@@ -2955,6 +2971,7 @@ var QR = (function () {
           h('h1', { text: 'Tersimpan \u2713' }),
           h('p', { class: 'sub', text: usedEdit.plate + ' diperbarui di ' + res.tab + ' baris ' + res.row + '. Status sekarang: ' + (res.status || '-') + '.' }),
           woAuto(res, data, usedSid, sig),
+          vtgContinueCard(data),
           h('button', { class: 'btn', text: 'Lihat dashboard', onclick: function () { showTab('dash'); } }),
           h('div', { style: 'margin-top:10px' }, [h('button', { class: 'btn sec', text: 'Isi form lain', onclick: function () { renderedMode = ''; render(); window.scrollTo(0, 0); } })])
         ]));
@@ -3133,15 +3150,20 @@ var QR = (function () {
     if (woErr) { el.appendChild(statusLine('Gagal memuat: ' + woErr, true)); return; }
     if (!woData) { el.appendChild(statusLine('Memuat daftar WO...')); ensureWo(false); return; }
     var q = woF.q.trim().toUpperCase();
+    var woDeps = {}; woData.rows.forEach(function (r) { if (r.depot) woDeps[r.depot] = 1; });
+    var dsel = h('select', { style: 'width:100%;margin-bottom:10px', onchange: function () { woF.depot = dsel.value; drawWo(); } }, [h('option', { value: '', text: 'Semua depot' })].concat(Object.keys(woDeps).sort().map(function (d) { return h('option', { value: d, text: shortDep(d) }); })));
+    dsel.value = woF.depot || '';
+    el.appendChild(dsel);
     var segs = [['', 'Semua'], ['Menunggu PIC', 'Menunggu PIC'], ['Selesai', 'Selesai']];
     el.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, segs.map(function (s) {
-      var n = woData.rows.filter(function (r) { return !s[0] || r.st === s[0]; }).length;
+      var n = woData.rows.filter(function (r) { return (!s[0] || r.st === s[0]) && (!woF.depot || r.depot === woF.depot); }).length;
       return h('button', { type: 'button', class: woF.st === s[0] ? 'on' : '', text: s[1] + ' ' + n, onclick: function () { woF.st = s[0]; drawWo(); } });
     })));
     var inp = h('input', { type: 'text', placeholder: 'Cari plat, depot, teknisi...', value: woF.q, style: 'width:100%;margin-bottom:10px', oninput: function () { woF.q = inp.value; var p = inp.selectionStart; drawWo(); var n = document.querySelector('#wov input[type=text]'); if (n) { n.focus(); try { n.setSelectionRange(p, p); } catch (e) {} } } });
     el.appendChild(inp);
     var list = woData.rows.filter(function (r) {
       if (woF.st && r.st !== woF.st) return false;
+      if (woF.depot && r.depot !== woF.depot) return false;
       return !q || (r.plate + ' ' + r.depot + ' ' + r.teknisi + ' ' + r.work).toUpperCase().indexOf(q) >= 0;
     });
     if (!list.length) { el.appendChild(statusLine('Belum ada WO.')); return; }
@@ -3204,6 +3226,13 @@ var QR = (function () {
     dlgEl.innerHTML = ''; dlgEl.appendChild(pn); dlgEl.classList.add('on'); dlgEl.scrollTop = 0; dlgEl.onclick = function (e) { if (e.target === dlgEl) close(); };
   }
 
+  function vtgContinueCard(data) {
+    if (!cfg || !cfg.vtag || !cfg.vtagApp || !/^pending/i.test(String((data && data.unitProgres) || ''))) return null;
+    return h('div', { class: 'card', style: 'text-align:left;margin:12px 0;border:2px solid var(--accent)' }, [
+      h('b', { text: 'Unit ' + String(data.unitProgres) + ' \u2014 lanjut ke Investigasi VTAG?' }),
+      h('div', { class: 'hint', style: 'margin:4px 0 10px', text: 'Catat kasus ini di Investigasi supaya foreman bisa memvalidasi. Kamu langsung dibawa ke halaman "Input kasus baru".' }),
+      h('button', { type: 'button', class: 'btn', text: 'Lanjut investigasi VTAG', onclick: function () { window.__vtgCase = ''; vtgForceNew = true; showTab('vtg'); } })]);
+  }
   function done(res, data, usedSid, sig) {
     loadStok(true);
     app.innerHTML = '';
@@ -3214,6 +3243,7 @@ var QR = (function () {
       res.warnings && res.warnings.length ? h('div', { class: 'msg bad', text: 'Kolom ini tidak ditemukan di sheet, jadi tidak tersimpan: ' + res.warnings.join(', ') }) : null,
       stokBox(res),
       pdfBox,
+      vtgContinueCard(data),
       h('button', { class: 'btn', text: 'Isi form baru', onclick: function () { render(); window.scrollTo(0, 0); } }),
       h('div', { style: 'margin-top:10px' }, [h('button', { class: 'btn sec', text: 'Lihat dashboard', onclick: function () { showTab('dash'); } })])
     ]));
@@ -3228,6 +3258,7 @@ var QR = (function () {
     done: ['Selesai (Done)', function (r) { return r._st === 'done'; }],
     pending: ['Belum selesai', function (r) { return r._st !== 'done'; }],
     pendingPart: ['Pending Part', function (r) { return r._st === 'pp'; }],
+    admPend: ['Administrasi belum lengkap', function (r) { var a = admOf(r); return r._st === 'done' && !!a && !a.ok; }],
     pendOnly: ['Pending', function (r) { return String(r.statusWork || '').trim().toLowerCase() === 'pending'; }]
   };
 
@@ -3363,7 +3394,7 @@ var QR = (function () {
   function loadDash() {
     dashBusy = true; dashErr = ''; drawAll();
     run('getDashboard', code).then(function (d) {
-      d.rows.forEach(prep); dash = d; dashBusy = false; shown = 60; drawAll();
+      d.rows.forEach(prep); dash = d; dashBusy = false; shown = 60; drawAll(); if (!isTek()) ensureAdm(false);
     }).catch(function (e) { dashBusy = false; dashErr = e.message; drawAll(); });
   }
 
@@ -3593,6 +3624,8 @@ var QR = (function () {
     var bs = [];
     if (r.statusWork) bs.push(badge(r.statusWork, r._st === 'done' ? 'done' : 'pp'));
     if (r.statusPart) bs.push(badge(r.statusPart, /non\s*warranty/i.test(r.statusPart) ? 'nw' : ''));
+    var ad = r._st === 'done' ? admOf(r) : null;
+    if (ad) bs.push(badge(ad.ok ? 'Administrasi lengkap' : 'Administrasi belum lengkap', ad.ok ? 'done' : 'red'));
     var nd = r.docs ? Object.keys(r.docs).reduce(function (n, k) { return n + r.docs[k].length; }, 0) : 0;
     return h('button', { type: 'button', class: 'rc ' + (r._st === 'done' ? 'dn' : 'pend'), onclick: function () { openDetail(r); } }, [
       h('div', { class: 'l1' }, [h('span', { class: 'pl', text: r.plate || '-' }), h('span', { class: 'dt', text: showDate(r.tgl) })]),
@@ -3736,6 +3769,14 @@ var QR = (function () {
     sec('Part', [kv('Nama part rusak', r.partRusak), kv('Nama part baru', r.partBaru), kv('Kode part baru', r.kodeBaru), kv('Status part baru', r.statusPart)]);
     var pen = (r.pen || []).map(function (t, i) { return t ? h('div', {}, [h('small', { class: 'upd', text: 'Penjelasan pekerjaan ' + (i + 1) }), h('div', { class: 'pen', text: t })]) : null; }).filter(Boolean);
     if (pen.length) { pn.appendChild(h('h4', { text: 'Penjelasan pekerjaan' })); pen.forEach(function (x) { pn.appendChild(x); }); }
+    var adr = (!isTek() && r._st === 'done') ? admOf(r) : null;
+    if (adr) {
+      pn.appendChild(h('h4', { text: 'Administrasi' }));
+      pn.appendChild(h('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap' }, [
+        badge(adr.ok ? 'Lengkap' : 'Belum lengkap', adr.ok ? 'done' : 'red'),
+        h('span', { class: 'sub', text: adr.dms ? 'DMS: ' + adr.dms + (adr.inv ? ' \u00b7 Invoice ' + adr.inv : '') : 'Belum dipilih DMS ya/tidak' }),
+        h('button', { type: 'button', class: 'btn', style: 'padding:7px 14px;font-size:13px', text: adr.ok ? 'Lihat / ubah' : 'Lengkapi administrasi', onclick: function () { openAdm(adr); } })]));
+    }
     pn.appendChild(h('h4', { text: 'Work Order' }));
     var woBox = h('div', {}), woMsg = h('div', {});
     var pn0 = String(r.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -4212,7 +4253,21 @@ var QR = (function () {
           .catch(function (e) { syncBtn.disabled = false; msg.className = 'err'; msg.textContent = e.message; });
       } });
       wrap.appendChild(syncBtn);
-      getters.lists = function () { var o = { stale: st.value }; Object.keys(ta).forEach(function (k) { o[k] = ta[k].value; }); return o; };
+      var gd = (dr && dr.guard) || d.guard || { on: false, days: 3, max: 5, freeze: true };
+      var inpS = 'font:inherit;padding:8px;border:1.5px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink);width:110px';
+      var gOn = h('input', { type: 'checkbox' }); gOn.checked = !!gd.on;
+      var gFr = h('input', { type: 'checkbox' }); gFr.checked = gd.freeze !== false;
+      var gDays = h('input', { type: 'number', min: '0', max: '60', value: String(gd.days == null ? 3 : gd.days), style: inpS });
+      var gMax = h('input', { type: 'number', min: '0', max: '100', value: String(gd.max == null ? 5 : gd.max), style: inpS });
+      var lab = function (el, txt) { return h('label', { style: 'display:flex;align-items:center;gap:8px;margin:8px 0;font-weight:600' }, [el, h('span', { text: txt })]); };
+      wrap.appendChild(h('div', { class: 'panel' }, [h('h3', { text: 'Batas check-in belum dilengkapi (teknisi)' }),
+        h('div', { class: 'sub', style: 'margin-bottom:6px', text: 'Check-in yang belum diisi form dianggap menggantung. Kalau batas terlewati, teknisi mendapat notifikasi, dan bila "bekukan" aktif, check-in baru, request part, dan terima part dikunci sampai Isi Form dilengkapi. Isi Form tidak pernah dikunci. Akun SPV tidak terkena.' }),
+        lab(gOn, 'Aktifkan aturan ini'),
+        h('div', { style: 'display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end' }, [
+          h('label', { style: 'display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:700;color:var(--muted)' }, [h('span', { text: 'Maks. umur check-in (hari), 0 = tidak dipakai' }), gDays]),
+          h('label', { style: 'display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:700;color:var(--muted)' }, [h('span', { text: 'Maks. jumlah check-in menunggu, 0 = tidak dipakai' }), gMax])]),
+        lab(gFr, 'Bekukan akun teknisi (kalau dimatikan: hanya notifikasi)')]));
+      getters.lists = function () { var o = { stale: st.value, guard: { on: gOn.checked, days: gDays.value, max: gMax.value, freeze: gFr.checked } }; Object.keys(ta).forEach(function (k) { o[k] = ta[k].value; }); return o; };
     }
     if (setTab === 'vtag') {
       var vp = h('div', { class: 'panel' }, [h('h3', { text: 'Pengaturan Investigasi (VTAG)' }), h('div', { class: 'sub', style: 'margin-bottom:8px', text: 'Dipakai bersama aplikasi Investigasi: perubahan di sini juga berlaku di sana. Hanya nama, tampil dan wajib untuk field & lampiran.' })]);
@@ -4275,7 +4330,7 @@ var QR = (function () {
         var lines = function (v) { return String(v || '').split(/\r?\n/).map(function (x) { return x.trim(); }).filter(Boolean); };
         var p = {}, dl = setDraft && setDraft.lists, df = setDraft && setDraft.fields;
         if (df) { p.fields = {}; df.forEach(function (x) { p.fields[x.key] = { show: x.show, req: x.req }; }); }
-        if (dl) { ['teknisi', 'pic', 'depot', 'type', 'status', 'unitProgres', 'finalWork', 'ciCancel'].forEach(function (k) { p[k] = lines(dl[k]); }); p.stale = dl.stale; }
+        if (dl) { ['teknisi', 'pic', 'depot', 'type', 'status', 'unitProgres', 'finalWork', 'ciCancel'].forEach(function (k) { p[k] = lines(dl[k]); }); p.stale = dl.stale; if (dl.guard) p.guard = dl.guard; }
         save.disabled = true; save.textContent = 'Menyimpan...';
         run('saveSettings', code, p).then(function (r) {
           setData = r; setDraft = null; setMsg = 'Tersimpan. Pengaturan langsung dipakai.'; setErr = '';
@@ -4347,6 +4402,7 @@ var QR = (function () {
       return true;
     });
   }
+  function shortDep(d) { return String(d || '').replace(/^\s*Depot\s*[-\u2013:]\s*/i, ''); }
   function buildDhSub() {
     ['dash', 'hist'].forEach(function (k) {
       var box = document.getElementById(k + 'Sub'); if (!box) return;
@@ -4355,11 +4411,11 @@ var QR = (function () {
       var deps = (df && df.options) ? df.options.slice() : [];
       var mk = function (label, on, fn) { box.appendChild(h('button', { type: 'button', class: 'sbi sbs' + (on ? ' on' : ''), onclick: fn }, [h('span', { text: label })])); };
       mk('Semua depot', tab === k && !flt.depot && !(k === 'hist' && flt.flag), function () { flt.depot = ''; flt.flag = ''; shown = 60; showTab(k); });
-      deps.forEach(function (d) { mk(d, tab === k && flt.depot === d, function () { flt.depot = d; shown = 60; showTab(k); }); });
-      if (k === 'dash') mk('Part order sudah terpasang', false, function () { invView = 'pasang'; showTab('inv'); });
+      deps.forEach(function (d) { mk(shortDep(d), tab === k && flt.depot === d, function () { flt.depot = d; shown = 60; showTab(k); }); });
       if (k === 'hist') [['done', 'Selesai (Done)'], ['pendOnly', 'Pending'], ['pendingPart', 'Pending Part']].forEach(function (p) {
         if (FLAGS[p[0]]) mk(p[1], tab === k && flt.flag === p[0], function () { flt.flag = p[0]; shown = 60; showTab(k); });
       });
+      if (k === 'hist' && !isTek() && admData) { var an = admPendCount(); mk('Administrasi belum lengkap' + (an ? ' (' + an + ')' : ''), tab === k && flt.flag === 'admPend', function () { flt.flag = 'admPend'; flt.depot = ''; shown = 60; showTab(k); }); }
     });
   }
   function buildInvSub() {
@@ -4369,9 +4425,8 @@ var QR = (function () {
     var deps = {}; (invData.items || []).forEach(function (x) { if (x.d) deps[x.d] = 1; });
     var mk = function (label, on, fn) { box.appendChild(h('button', { type: 'button', class: 'sbi sbs' + (on ? ' on' : ''), onclick: fn }, [h('span', { text: label })])); };
     mk('Semua depot', invView === 'kirim' && !invF.depot, function () { invView = 'kirim'; invF.depot = ''; showTab('inv'); });
-    Object.keys(deps).sort().forEach(function (d) { mk(d, invView === 'kirim' && invF.depot === d, function () { invView = 'kirim'; invF.depot = d; showTab('inv'); }); });
+    Object.keys(deps).sort().forEach(function (d) { mk(shortDep(d), invView === 'kirim' && invF.depot === d, function () { invView = 'kirim'; invF.depot = d; showTab('inv'); }); });
     mk('Stok per bengkel', invView === 'stok', function () { invView = 'stok'; showTab('inv'); });
-    mk('Part order terpasang', invView === 'pasang', function () { invView = 'pasang'; showTab('inv'); });
     mk('Daftar Part (per type)', invView === 'parts', function () { invView = 'parts'; showTab('inv'); });
     mk('Incoming Part (Order)', invView === 'order', function () { invView = 'order'; showTab('inv'); });
     mk('Part Ready (Balance KS)', invView === 'ready', function () { invView = 'ready'; showTab('inv'); });
@@ -4386,7 +4441,7 @@ var QR = (function () {
   function drawPasang() {
     ensurePasang(false);
     if (!pasData) { invEl.appendChild(pasErr ? statusLine('Gagal memuat: ' + pasErr, true) : statusLine('Memuat part order...')); return; }
-    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
       return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
     }));
     invEl.appendChild(vsw);
@@ -4421,11 +4476,21 @@ var QR = (function () {
   function ensureAdm(force) {
     if (admBusy || (admData && !force)) return;
     admBusy = true; admErr = '';
-    run('getAdm', code).then(function (d) { admData = d; admBusy = false; if (tab === 'adm') drawAdm(); })
+    run('getAdm', code).then(function (d) { admData = d; admMap = null; admBusy = false; admBadge(); if (tab === 'adm') drawAdm(); else if (tab === 'hist' || tab === 'dash') drawAll(); })
       .catch(function (e) { admBusy = false; admErr = e.message || 'gagal'; if (tab === 'adm') drawAdm(); });
     if (tab === 'adm') drawAdm();
   }
   function admMetode(r) { return r.metode || r.auto || ''; }
+  var admMap = null;
+  function admIndex() { admMap = {}; ((admData && admData.rows) || []).forEach(function (a) { admMap[a.tab + '|' + a.row] = a; }); }
+  function admOf(r) { if (!admData) return null; if (!admMap) admIndex(); return admMap[r.sh + '|' + (Number(r.n) + 1)] || null; }
+  function admOkLocal(o) {
+    if (o.dms === 'Tidak') return !!(o.inv && o.tglInv);
+    if (o.dms === 'Ya') return !!(o.wo && o.tglWo && o.wc && o.l1 && o.l2 && o.l3 && o.inv && o.tglInv && (o.metode || o.auto));
+    return false;
+  }
+  function admPendCount() { var n = 0; if (!dash) return 0; dash.rows.forEach(function (r) { if (r._st === 'done') { var a = admOf(r); if (a && !a.ok) n++; } }); return n; }
+  function admBadge() { var el = document.getElementById('mbHist'); if (!el) return; var n = isTek() ? 0 : admPendCount(); el.textContent = n ? String(n) : ''; el.title = n ? n + ' pekerjaan selesai, administrasi belum lengkap' : ''; }
   function admRows() {
     var q = admF.q.trim().toUpperCase();
     return ((admData && admData.rows) || []).filter(function (r) {
@@ -4471,7 +4536,7 @@ var QR = (function () {
   function openAdm(r) {
     var pn = h('div', { class: 'pn' }), close = function () { dlgEl.classList.remove('on'); }, f = {}, msg = h('div', { class: 'sub', style: 'min-height:18px;margin-top:8px' });
     pn.appendChild(h('div', { style: 'display:flex;justify-content:space-between;align-items:flex-start;gap:8px' }, [
-      h('div', {}, [h('h2', { text: r.plate }), h('div', { class: 'upd', text: r.tab + ' · ' + showDateDash(r.tgl) + ' · ' + (r.teknisi || '-') + ' · ' + (r.prog || '-') })]),
+      h('div', {}, [h('h2', { text: 'Administrasi · ' + r.plate }), h('div', { class: 'upd', text: r.tab + ' · ' + showDateDash(r.tgl) + ' · ' + (r.teknisi || '-') + ' · ' + (r.prog || '-') })]),
       h('button', { type: 'button', class: 'btn sec', text: 'Tutup', onclick: close })]));
     function fld(k, label, type, extra) {
       var inp = type === 'select'
@@ -4482,21 +4547,40 @@ var QR = (function () {
       return h('label', { style: 'display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:700;color:var(--muted)' }, [h('span', { text: label }), inp, extra ? h('small', { style: 'font-weight:400', text: extra }) : null]);
     }
     var grid = function (items) { return h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px' }, items); };
-    pn.appendChild(h('h4', { text: 'WO & WC' }));
-    pn.appendChild(grid([fld('wo', 'No WO'), fld('tglWo', 'Tanggal input WO', 'date', 'Kosong = otomatis hari ini saat No WO diisi'), fld('wc', 'No WC'), fld('tglWc', 'Tanggal WC', 'date')]));
-    pn.appendChild(h('h4', { text: 'Approve' }));
-    pn.appendChild(grid([fld('l1', 'Tanggal approve L1', 'date'), fld('l2', 'Tanggal approve L2', 'date'), fld('l3', 'Tanggal approve L3', 'date')]));
-    pn.appendChild(h('h4', { text: 'Invoice & pembayaran' }));
-    pn.appendChild(grid([fld('inv', 'No Invoice Servia'), fld('tglInv', 'Tanggal invoice Servia', 'date'), fld('metode', 'Metode pembayaran', 'select', r.auto ? 'Otomatis dari status part: ' + r.auto + ' (bisa diubah)' : 'Warranty = TOP VAI, Non Warranty = TOP Xanh SM')]));
+    pn.appendChild(h('h4', { text: 'Apakah pekerjaan ini di-input ke DMS?' }));
+    var dms = r.dms || '';
+    var yes = h('button', { type: 'button', class: 'pill', text: 'Ya, input DMS' }), no = h('button', { type: 'button', class: 'pill', text: 'Tidak' });
+    pn.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, [yes, no]));
+    var dmsBox = h('div'), invBox = h('div');
+    pn.appendChild(dmsBox); pn.appendChild(invBox);
+    dmsBox.appendChild(h('h4', { text: 'WO & WC' }));
+    dmsBox.appendChild(grid([fld('wo', 'No WO'), fld('tglWo', 'Tanggal input WO', 'date', 'Kosong = otomatis hari ini saat No WO diisi'), fld('wc', 'No WC'), fld('tglWc', 'Tanggal WC', 'date')]));
+    dmsBox.appendChild(h('h4', { text: 'Approve' }));
+    dmsBox.appendChild(grid([fld('l1', 'Tanggal approve L1', 'date'), fld('l2', 'Tanggal approve L2', 'date'), fld('l3', 'Tanggal approve L3', 'date')]));
+    invBox.appendChild(h('h4', { text: 'Invoice Servia' }));
+    var invItems = [fld('inv', 'No Invoice Servia'), fld('tglInv', 'Tanggal input close Servia', 'date', 'Kosong = otomatis hari ini saat No Invoice diisi')];
+    var metBox = fld('metode', 'Metode pembayaran', 'select', r.auto ? 'Otomatis dari status part: ' + r.auto + ' (bisa diubah)' : 'Warranty = TOP VAI, Non Warranty = TOP Xanh SM');
+    invItems.push(metBox);
+    invBox.appendChild(grid(invItems));
+    function paint() {
+      yes.className = 'pill' + (dms === 'Ya' ? ' on' : ''); no.className = 'pill' + (dms === 'Tidak' ? ' on' : '');
+      dmsBox.style.display = dms === 'Ya' ? '' : 'none'; invBox.style.display = dms ? '' : 'none'; metBox.style.display = dms === 'Ya' ? '' : 'none';
+    }
+    yes.onclick = function () { dms = 'Ya'; paint(); }; no.onclick = function () { dms = 'Tidak'; paint(); };
+    paint();
     var save = h('button', { type: 'button', class: 'btn', style: 'margin-top:14px', text: 'Simpan', onclick: function () {
-      var data = {}; Object.keys(f).forEach(function (k) { data[k] = f[k].value; });
+      if (!dms) { msg.className = 'err'; msg.textContent = 'Pilih dulu: di-input ke DMS atau tidak.'; return; }
+      var data = { dms: dms };
+      Object.keys(f).forEach(function (k) { if (dms === 'Tidak' && (k === 'wo' || k === 'tglWo' || k === 'wc' || k === 'tglWc' || k === 'l1' || k === 'l2' || k === 'l3' || k === 'metode')) return; data[k] = f[k].value; });
       if (data.metode === r.auto && !r.metode) data.metode = r.auto;
       save.disabled = true; save.textContent = 'Menyimpan...'; msg.textContent = '';
       run('saveAdm', code, r.tab, r.row, data).then(function (res) {
         if (res && res.ok) {
           Object.keys(data).forEach(function (k) { r[k] = data[k]; });
-          if (data.wo && !data.tglWo) r.tglWo = iso(new Date()); if (data.wc && !data.tglWc) r.tglWc = iso(new Date()); if (data.inv && !data.tglInv) r.tglInv = iso(new Date());
-          close(); drawAdm(); toast('Administrasi ' + r.plate + ' tersimpan');
+          if (data.wo && !data.tglWo) r.tglWo = iso(new Date());
+          if (data.inv && !data.tglInv) r.tglInv = iso(new Date());
+          r.ok = admOkLocal(r);
+          close(); admBadge(); if (tab === 'adm') drawAdm(); else drawAll(); toast('Administrasi ' + r.plate + (r.ok ? ' lengkap' : ' tersimpan, masih ada yang kosong'));
         } else { save.disabled = false; save.textContent = 'Simpan'; msg.className = 'err'; msg.textContent = (res && res.errors && res.errors.join(', ')) || 'Gagal menyimpan'; }
       }).catch(function (e) { save.disabled = false; save.textContent = 'Simpan'; msg.className = 'err'; msg.textContent = e.message || 'Gagal menyimpan'; });
     } });
@@ -4558,7 +4642,7 @@ var QR = (function () {
     invEl.innerHTML = ''; buildInvSub();
     if (invView === 'pasang') { drawPasang(); return; }
     if (invView === 'ready' || invView === 'parts' || invView === 'order') {
-      invEl.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+      invEl.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
         return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
       })));
       drawTekInv(true); return;
@@ -4570,7 +4654,7 @@ var QR = (function () {
       return;
     }
     if (!invData) return;
-    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['pasang', 'Part order terpasang'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
+    var vsw = h('div', { class: 'seg', style: 'margin-bottom:10px' }, [['kirim', 'Pengiriman ke depot'], ['stok', 'Stok per bengkel'], ['parts', 'Daftar Part (per type)'], ['order', 'Incoming Part (Order)'], ['ready', 'Part Ready (Balance KS)']].map(function (v) {
       return h('button', { type: 'button', class: invView === v[0] ? 'on' : '', text: v[1], onclick: function () { invView = v[0]; drawInv(); } });
     }));
     invEl.appendChild(vsw);
