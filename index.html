@@ -35,7 +35,7 @@
     run: make({}),
     url: { getLocation: function (cb) { var p = {}; try { new URLSearchParams(location.search).forEach(function (v, k) { p[k] = v; }); } catch (e) {} cb({ parameter: p, hash: location.hash.replace(/^#/, '') }); } }
   } };
-  window.__APP_VER = '1.5.1';
+  window.__APP_VER = '1.6.0';
 })();
 </script>
 
@@ -2249,13 +2249,18 @@ var QR = (function () {
       });
     } else if (f.type === 'files') {
       files[f.key] = [];
-      var list = h('div', { class: 'files' });
+      var cur = '', list = h('div', { class: 'files' });
       var inp = h('input', { type: 'file', multiple: true, accept: f.accept || null, style: 'display:none', onchange: function () {
         var added = [];
-        Array.prototype.forEach.call(inp.files, function (file) { files[f.key].push({ file: file, link: '' }); added.push(file); });
+        Array.prototype.forEach.call(inp.files, function (file) { files[f.key].push({ file: file, link: '', sub: cur }); added.push(file); });
         inp.value = ''; drawFiles(f.key, list); clearBad(card);
         if (OCR_MAP[f.key] && added.length) ocrFrom(f.key, added, card); } });
-      card.appendChild(h('button', { class: 'btn sec', text: '+ Tambah file', onclick: function () { inp.click(); } }));
+      if (FSUBS[f.key]) {
+        // kolom dengan pembeda (Awal/Akhir, Part Lama/Baru): satu tombol per pembeda; file masuk ke subfolder Drive-nya
+        var bar = h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' });
+        FSUBS[f.key].forEach(function (sb) { bar.appendChild(h('button', { type: 'button', class: 'btn sec', text: '+ ' + sb, onclick: function () { cur = sb; inp.click(); } })); });
+        card.appendChild(bar);
+      } else card.appendChild(h('button', { class: 'btn sec', text: '+ Tambah file', onclick: function () { inp.click(); } }));
       card.appendChild(inp); card.appendChild(list);
     } else if (f.type === 'part') {
       var q = h('input', { type: 'text', placeholder: 'Ketik nama atau kode part...', autocomplete: 'off', oninput: function () { refreshList(f.key); } });
@@ -2313,11 +2318,12 @@ var QR = (function () {
     }).catch(function () { st.textContent = 'Foto belum terbaca otomatis, isi manual.'; });
   }
 
+  var FSUBS = { swbom: ['Awal', 'Akhir'], dtc: ['Awal', 'Akhir'], topologi: ['Awal', 'Akhir'], fotoPart: ['Part Lama', 'Part Baru'] };
   function drawFiles(key, box) {
     box.innerHTML = '';
     files[key].forEach(function (it, i) {
       box.appendChild(h('div', { class: 'file' + (it.link ? ' done' : '') }, [
-        h('span', { class: 'n', text: it.file.name }), h('span', { class: 's', text: fmtSize(it.file.size) }),
+        h('span', { class: 'n', text: (it.sub ? '[' + it.sub + '] ' : '') + it.file.name }), h('span', { class: 's', text: fmtSize(it.file.size) }),
         h('button', { type: 'button', title: 'Hapus', text: '×', onclick: function () { files[key].splice(i, 1); drawFiles(key, box); } })
       ]));
     });
@@ -2681,7 +2687,7 @@ var QR = (function () {
   function startSession(it, f, key, plate, date) {
     if (it.vtCase) return run('vtStartUpload', code, it.vtCase, key, { name: f.name, mime: f.type || 'application/octet-stream', size: f.size }).then(function (r) { it.vtName = r.name; return { url: r.uri }; });
     var p = startQ.then(function () {
-      return run('startUpload', code, { name: f.name, mime: f.type || 'application/octet-stream', size: f.size, plate: plate, date: date, sid: sid, field: key });
+      return run('startUpload', code, { name: f.name, mime: f.type || 'application/octet-stream', size: f.size, plate: plate, date: date, sid: sid, field: key, sub: it.sub || '' });
     });
     startQ = p.catch(function () {});
     return p;
@@ -4486,7 +4492,7 @@ var QR = (function () {
   function admOf(r) { if (!admData) return null; if (!admMap) admIndex(); return admMap[r.sh + '|' + (Number(r.n) + 1)] || null; }
   function admOkLocal(o) {
     if (o.dms === 'Tidak') return !!(o.inv && o.tglInv);
-    if (o.dms === 'Ya') return !!(o.wo && o.tglWo && o.wc && o.l1 && o.l2 && o.l3 && o.inv && o.tglInv && (o.metode || o.auto));
+    if (o.dms === 'Ya') { var j = o.jenis || o.autoJenis || ''; return !!(o.wo && o.tglWo && (j === 'Non Warranty' || o.wc) && o.l1 && o.inv && o.tglInv && (o.metode || o.auto) && j); }
     return false;
   }
   function admPendCount() { var n = 0; if (!dash) return 0; dash.rows.forEach(function (r) { if (r._st === 'done') { var a = admOf(r); if (a && !a.ok) n++; } }); return n; }
@@ -4553,10 +4559,14 @@ var QR = (function () {
     pn.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, [yes, no]));
     var dmsBox = h('div'), invBox = h('div');
     pn.appendChild(dmsBox); pn.appendChild(invBox);
+    var jenis = r.jenis || r.autoJenis || '';
+    var jW = h('button', { type: 'button', class: 'pill', text: 'Warranty' }), jN = h('button', { type: 'button', class: 'pill', text: 'Non Warranty' });
+    dmsBox.appendChild(h('h4', { text: 'Jenis pekerjaan' }));
+    dmsBox.appendChild(h('div', { class: 'seg', style: 'margin-bottom:10px' }, [jW, jN]));
     dmsBox.appendChild(h('h4', { text: 'WO & WC' }));
-    dmsBox.appendChild(grid([fld('wo', 'No WO'), fld('tglWo', 'Tanggal input WO', 'date', 'Kosong = otomatis hari ini saat No WO diisi'), fld('wc', 'No WC'), fld('tglWc', 'Tanggal WC', 'date')]));
+    dmsBox.appendChild(grid([fld('wo', 'No WO'), fld('tglWo', 'Tanggal input WO', 'date', 'Kosong = otomatis hari ini saat No WO diisi'), fld('wc', 'No WC', null, 'Non Warranty tidak perlu No WC'), fld('tglWc', 'Tanggal WC', 'date')]));
     dmsBox.appendChild(h('h4', { text: 'Approve' }));
-    dmsBox.appendChild(grid([fld('l1', 'Tanggal approve L1', 'date'), fld('l2', 'Tanggal approve L2', 'date'), fld('l3', 'Tanggal approve L3', 'date')]));
+    dmsBox.appendChild(grid([fld('l1', 'Tanggal approve L1', 'date', 'Wajib'), fld('l2', 'Tanggal approve L2 (opsional)', 'date'), fld('l3', 'Tanggal approve L3 (opsional)', 'date')]));
     invBox.appendChild(h('h4', { text: 'Invoice Servia' }));
     var invItems = [fld('inv', 'No Invoice Servia'), fld('tglInv', 'Tanggal input close Servia', 'date', 'Kosong = otomatis hari ini saat No Invoice diisi')];
     var metBox = fld('metode', 'Metode pembayaran', 'select', r.auto ? 'Otomatis dari status part: ' + r.auto + ' (bisa diubah)' : 'Warranty = TOP VAI, Non Warranty = TOP Xanh SM');
@@ -4564,21 +4574,25 @@ var QR = (function () {
     invBox.appendChild(grid(invItems));
     function paint() {
       yes.className = 'pill' + (dms === 'Ya' ? ' on' : ''); no.className = 'pill' + (dms === 'Tidak' ? ' on' : '');
+      jW.className = 'pill' + (jenis === 'Warranty' ? ' on' : ''); jN.className = 'pill' + (jenis === 'Non Warranty' ? ' on' : '');
       dmsBox.style.display = dms === 'Ya' ? '' : 'none'; invBox.style.display = dms ? '' : 'none'; metBox.style.display = dms === 'Ya' ? '' : 'none';
     }
     var dk = 'wa_admdraft_' + r.tab + '|' + r.row, dnote = h('div', { class: 'sub', style: 'margin-top:6px;color:var(--accent-d)' });
-    function saveDraft() { var v = {}; Object.keys(f).forEach(function (k) { v[k] = f[k].value; }); try { localStorage.setItem(dk, JSON.stringify({ dms: dms, v: v })); } catch (e) {} }
+    function saveDraft() { var v = {}; Object.keys(f).forEach(function (k) { v[k] = f[k].value; }); try { localStorage.setItem(dk, JSON.stringify({ dms: dms, jenis: jenis, v: v })); } catch (e) {} }
     try {
       var dr0 = JSON.parse(localStorage.getItem(dk) || 'null');
-      if (dr0) { if (dr0.dms) dms = dr0.dms; Object.keys(f).forEach(function (k) { if (dr0.v && dr0.v[k] != null) f[k].value = dr0.v[k]; }); dnote.textContent = 'Draft yang belum disimpan dipulihkan. Tekan Simpan untuk menyimpannya ke sheet.'; }
+      if (dr0) { if (dr0.dms) dms = dr0.dms; if (dr0.jenis) jenis = dr0.jenis; Object.keys(f).forEach(function (k) { if (dr0.v && dr0.v[k] != null) f[k].value = dr0.v[k]; }); dnote.textContent = 'Draft yang belum disimpan dipulihkan. Tekan Simpan untuk menyimpannya ke sheet.'; }
     } catch (e) {}
     Object.keys(f).forEach(function (k) { f[k].addEventListener('input', saveDraft); f[k].addEventListener('change', saveDraft); });
+    function setJenis(j) { jenis = j; f.metode.value = j === 'Non Warranty' ? 'TOP Xanh SM' : 'TOP VAI'; paint(); saveDraft(); }
+    jW.onclick = function () { setJenis('Warranty'); }; jN.onclick = function () { setJenis('Non Warranty'); };
     yes.onclick = function () { dms = 'Ya'; paint(); saveDraft(); }; no.onclick = function () { dms = 'Tidak'; paint(); saveDraft(); };
     paint();
     var save = h('button', { type: 'button', class: 'btn', style: 'margin-top:14px', text: 'Simpan (boleh belum lengkap)', onclick: function () {
       if (!dms) { msg.className = 'err'; msg.textContent = 'Pilih dulu: di-input ke DMS atau tidak.'; return; }
       var data = { dms: dms };
-      Object.keys(f).forEach(function (k) { if (dms === 'Tidak' && (k === 'wo' || k === 'tglWo' || k === 'wc' || k === 'tglWc' || k === 'l1' || k === 'l2' || k === 'l3' || k === 'metode')) return; data[k] = f[k].value; });
+      Object.keys(f).forEach(function (k) { if (dms === 'Tidak' && (k === 'jenis' || k === 'wo' || k === 'tglWo' || k === 'wc' || k === 'tglWc' || k === 'l1' || k === 'l2' || k === 'l3' || k === 'metode')) return; data[k] = f[k].value; });
+      if (dms === 'Ya') data.jenis = jenis;
       if (data.metode === r.auto && !r.metode) data.metode = r.auto;
       save.disabled = true; save.textContent = 'Menyimpan...'; msg.textContent = '';
       run('saveAdm', code, r.tab, r.row, data).then(function (res) {
