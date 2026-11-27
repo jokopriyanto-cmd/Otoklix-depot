@@ -35,7 +35,7 @@
     run: make({}),
     url: { getLocation: function (cb) { var p = {}; try { new URLSearchParams(location.search).forEach(function (v, k) { p[k] = v; }); } catch (e) {} cb({ parameter: p, hash: location.hash.replace(/^#/, '') }); } }
   } };
-  window.__APP_VER = '1.6.0';
+  window.__APP_VER = '1.6.1';
 })();
 </script>
 
@@ -2672,13 +2672,49 @@ var QR = (function () {
       };
     });
   }
-  function prepFile(it) {
+  // Kolom TBOX: file apa pun (sampai 150 MB) dipadatkan jadi ZIP di perangkat sebelum diunggah. Foto/video tetap lewat pemadat masing-masing.
+  var ZIP_KEYS = { tbox: 1 }, NOZIP = /\.(zip|gz|7z|rar|bz2|xz|jpe?g|png|webp|heic|mp4|mov|webm|mkv|docx|xlsx|pptx|pdf)$/i;
+  var CRC_T = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crcUp(crc, u8) { for (var i = 0; i < u8.length; i++) crc = CRC_T[(crc ^ u8[i]) & 255] ^ (crc >>> 8); return crc; }
+  function zipFile(file, cb) {
+    if (typeof CompressionStream !== 'function' || !file.stream || file.size < 1024 || NOZIP.test(file.name)) return Promise.resolve(file);
+    var crc = 0xFFFFFFFF, read = 0, cs, rd, parts = [], csize = 0;
+    try { cs = new CompressionStream('deflate-raw'); } catch (e) { return Promise.resolve(file); }
+    var src = file.stream().getReader();
+    var tapped = new ReadableStream({
+      pull: function (ctl) {
+        return src.read().then(function (r) {
+          if (r.done) { ctl.close(); return; }
+          crc = crcUp(crc, r.value); read += r.value.length; if (cb) cb(Math.min(99, Math.round(read / file.size * 100)));
+          ctl.enqueue(r.value);
+        });
+      }
+    });
+    rd = tapped.pipeThrough(cs).getReader();
+    function drain() { return rd.read().then(function (r) { if (r.done) return; parts.push(r.value); csize += r.value.length; return drain(); }); }
+    return drain().then(function () {
+      crc = (crc ^ 0xFFFFFFFF) >>> 0;
+      var nm = new TextEncoder().encode(file.name), d = new Date(file.lastModified || Date.now());
+      var dt = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF, dd = (((Math.max(d.getFullYear(), 1980) - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
+      function u16(v, a) { a.push(v & 255, (v >> 8) & 255); } function u32(v, a) { a.push(v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255); }
+      var lh = []; u32(0x04034b50, lh); u16(20, lh); u16(0x0808, lh); u16(8, lh); u16(dt, lh); u16(dd, lh); u32(0, lh); u32(0, lh); u32(0, lh); u16(nm.length, lh); u16(0, lh);
+      var dsc = []; u32(0x08074b50, dsc); u32(crc, dsc); u32(csize, dsc); u32(read, dsc);
+      var cd = []; u32(0x02014b50, cd); u16(20, cd); u16(20, cd); u16(0x0808, cd); u16(8, cd); u16(dt, cd); u16(dd, cd); u32(crc, cd); u32(csize, cd); u32(read, cd); u16(nm.length, cd); u16(0, cd); u16(0, cd); u16(0, cd); u16(0, cd); u32(0, cd); u32(0, cd);
+      var cdOff = lh.length + nm.length + csize + dsc.length, cdLen = cd.length + nm.length;
+      var ee = []; u32(0x06054b50, ee); u16(0, ee); u16(0, ee); u16(1, ee); u16(1, ee); u32(cdLen, ee); u32(cdOff, ee); u16(0, ee);
+      var blob = new Blob([new Uint8Array(lh), nm].concat(parts, [new Uint8Array(dsc), new Uint8Array(cd), nm, new Uint8Array(ee)]), { type: 'application/zip' });
+      if (blob.size >= file.size) return file;   // tidak mengecil: kirim apa adanya
+      return new File([blob], file.name + '.zip', { type: 'application/zip', lastModified: file.lastModified });
+    }).catch(function () { return file; });
+  }
+  function prepFile(it, key) {
     if (/^video\//.test(it.file.type)) return shrinkVideo(it.file, function (p) { it.cp = p; }).then(function (f) { it.cp = null; return f; });
+    if (ZIP_KEYS[key] && !/^image\//.test(it.file.type)) { it.cpLbl = 'file'; return zipFile(it.file, function (p) { it.cp = p; }).then(function (f) { it.cp = null; return f; }); }
     return shrink(it.file);
   }
   function cpText(todo) {
     var c = todo.filter(function (t) { return t.it.cp != null && !t.it.f; })[0];
-    return c ? 'Memadatkan video ' + c.it.cp + '%' : '';
+    return c ? 'Memadatkan ' + (c.it.cpLbl || 'video') + ' ' + c.it.cp + '%' : '';
   }
 
   // Upload bisa dilanjutkan: kalau jaringan putus di tengah file besar, bagian yang sudah masuk tidak diulang (status ditanyakan ke Drive).
@@ -2693,7 +2729,7 @@ var QR = (function () {
     return p;
   }
   function uploadOne(it, key, plate, date, onBytes) {
-    return (it.f ? Promise.resolve(it.f) : prepFile(it)).then(function (f) {
+    return (it.f ? Promise.resolve(it.f) : prepFile(it, key)).then(function (f) {
       it.f = f; it.size = f.size;
       var total = f.size, mime = f.type || 'application/octet-stream';
       var sess = (it.sess && it.sess.total === total) ? Promise.resolve(it.sess)
